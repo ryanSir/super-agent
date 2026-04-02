@@ -46,7 +46,6 @@ async def submit_query(
     session_id = request.session_id or f"sess-{uuid.uuid4().hex[:12]}"
     trace_id = set_trace_context(session_id=session_id)
     session_id_var.set(session_id)
-
     logger.info(
         f"[Gateway] 收到查询请求 | "
         f"session_id={session_id} trace_id={trace_id} "
