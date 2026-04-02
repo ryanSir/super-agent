@@ -1,0 +1,18 @@
+{
+  "version": "1.0",
+  "exported_at": "2026-03-29T12:15:29.456204Z",
+  "skill": {
+    "name": "cost-reduction-triz",
+    "source": "official",
+    "owner_id": "jisonglin",
+    "review_status": "approved",
+    "version": "1.0.0",
+    "published_version": "1.0.0"
+  },
+  "tags": [
+    "eureka-agent"
+  ],
+  "metadata": {},
+  "preferences": {},
+  "extensions": {}
+}

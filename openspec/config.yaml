@@ -1,0 +1,36 @@
+schema: spec-driven
+
+context: |
+  Tech stack: Python 3.12, FastAPI, PydanticAI, LiteLLM, Temporal, Redis, Milvus, E2B, Langfuse
+  Frontend: React 18, TypeScript, Vite, ECharts, xterm
+  Language: 中文注释，英文变量名
+
+  Architecture:
+  - Orchestrator-Workers pattern: PydanticAI Agent 编排，Native/Sandbox Worker 执行
+  - Native Workers (SAFE): RAG 检索、DB 查询（只读）、API 调用，在宿主进程内执行
+  - Sandbox Worker (DANGEROUS): E2B 隔离沙箱，执行代码生成和脚本
+  - Skills: 可插拔技能包，存放在 skill/ 目录，通过 SKILL.md frontmatter 注册
+  - A2UI: 后端驱动的 Server-Driven UI，Agent 输出 JSON 渲染指令，前端动态组装
+  - Streaming: SSE 主通道（支持断点续传）+ WebSocket 双向通信
+  - Observability: Langfuse 全链路追踪 + 结构化日志 [request_id][trace_id]
+
+  Key constraints:
+  - DB Worker 只允许 SELECT，禁止写操作
+  - 新增前端组件必须同步在 ComponentRegistry.tsx 中注册
+  - Worker 统一返回 WorkerResult，通过 success 字段区分成功/失败
+  - 会话历史存储在内存 _session_histories，按 session_id 索引
+  - 技能名称规范：小写字母 + 连字符
+
+  Specs: openspec/specs/ (orchestrator.md, workers.md, skills.md, streaming.md, a2ui-protocol.md)
+
+rules:
+  proposal:
+    - 用中文描述变更动机和范围
+    - 必须包含 Non-goals 章节，明确不做什么
+    - 涉及 Worker 新增时，说明风险等级（SAFE/DANGEROUS）
+  specs:
+    - 用 Scenario 格式描述边界场景（输入 → 预期输出）
+    - 并发、失败、超时场景必须覆盖
+  tasks:
+    - 每个 task 限定在单个文件或单个函数级别
+    - 涉及数据模型变更的 task 排在最前面

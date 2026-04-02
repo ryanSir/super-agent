@@ -1,0 +1,50 @@
+[tool.poetry]
+name = "super-agent-poc"
+version = "0.1.0"
+description = "企业级混合智能体核心引擎 - Python 宏观编排 + TS 沙箱微观执行"
+authors = ["zhangyang"]
+readme = "README.md"
+packages = [{include = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+fastapi = "^0.115"
+uvicorn = {extras = ["standard"], version = "^0.34"}
+pydantic = "^2.10"
+pydantic-settings = "^2.7"
+pydantic-ai = "^0.1"
+litellm = "^1.55"
+langfuse = "^2.55"
+e2b = "^1.2"
+e2b-code-interpreter = "^1.1"
+redis = {extras = ["hiredis"], version = "^5.2"}
+httpx = "^0.28"
+pymilvus = "^2.5"
+python-jose = {extras = ["cryptography"], version = "^3.3"}
+websockets = "^14.1"
+sse-starlette = "^2.2"
+temporalio = "^1.9"
+python-dotenv = "^1.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3"
+pytest-asyncio = "^0.25"
+ruff = "^0.8"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

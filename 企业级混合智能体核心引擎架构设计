@@ -1,0 +1,89 @@
+一、 架构愿景与设计哲学 (Design Philosophy)
+核心愿景： 打造一个高并发、极高安全隔离、具备强大自主编程、业务编排及动态生成前端交互界面 (A2UI) 的内部 AI 底层基座。
+本架构旨在完美融合 “Python 数据科科学态的宏观编排能力” 与 “TypeScript (pi-mono) 在 Coding Agent 领域的微观自主执行能力”。
+
+我们在架构设计上严格贯彻以下四大哲学：
+1. 控制面与数据面隔离 (Control vs. Data Plane)： 业务逻辑编排、记忆管理、API 路由留在绝对安全的宿主网络（Python 侧）；动态代码生成、第三方库试错、文件读写放逐到阅后即焚的隔离沙箱（TS 侧）。
+2. 深度结构化契约 (Strict Typing)： 摒弃模糊的正则匹配，全面采用 Pydantic V2 强制约束 LLM 进出站数据结构，消除大模型“幻觉”带来的系统崩溃。
+3. 零信任安全基线 (Zero-Trust Security)： 沙箱内部属于“不可信环境”，绝对禁止泄露真实的 LLM API Key 和内网核心凭证。
+4. 白盒化可观测性 (White-box Observability)： AI 系统不能是黑盒。必须拥抱 LLM 原生监控平台与全链路 Trace ID，实现跨语言、跨容器的无缝成本追踪与 Prompt 调试。
+二、 系统工程决策：范式、架构与设计模式
+参考业界前沿的“AI Agent 系统工程全景”理论，本核心引擎在从顶层方法论到底层执行逻辑的三个决策层级上，均做出了明确的工程决策：
+1. 开发范式 (Development Paradigms) —— 战略选型
+我们在使用模型的阶段，组合了多种高级范式来弥补基础大模型的能力短板：
+● RAG (检索增强生成)： 结合 Milvus 向量数据库，在编排层进行私域知识（如企业专利数据、内部 API 文档）的实时检索与上下文注入，彻底解决大模型的“幻觉”与知识时效性问题。
+● Agentic Workflow (智能体工作流)： 摒弃脆弱的单次 Prompt 问答，依赖 Temporal 状态机与沙箱环境构建包含规划、执行、反馈的系统化循环工作流。
+2. 系统架构 (System Architectures) —— 结构设计
+● 编排架构 (Orchestrator-Workers)： 系统抛弃了单智能体架构的瓶颈，也避免了去中心化多智能体（Multi-Agent）不可控的缺点，采用中心化层级结构：
+  ○ 主 Agent (Orchestrator)： 由 Python 端的 PydanticAI 担任，负责理解需求、动态拆解子任务并进行宏观路由分发。控制流由 LLM 运行时动态决定。
+  ○ 子 Agent (Workers) - 物理隔离双轨制： 并非所有子 Agent 都在沙箱内，而是根据任务的“危险程度”分为两类：
+    ■ 可信子 Agent (Python 原生)： 留在绝对安全的宿主环境，由 PydanticAI 担任。负责高频/安全的内网交互，如 RAG 检索（PatentQuery_Worker）、内部 API 调用、关系型数据库查询等。
+    ■ 沙箱子 Agent (TS 隔离)： 由 E2B 沙箱内的 pi-mono 担任。专攻“不可信代码生成、动态脚本执行、文件批量篡改”等高危领域（Coding_Worker）。
+3. 设计模式 (Design Patterns) —— 执行逻辑
+在单个 Agent 节点的微观执行层面，系统综合运用了以下经典设计模式：
+● Plan-and-Execute (规划-执行分离)： 面对复杂分析任务，PydanticAI 作为 Planner 先生成全局执行拓扑（DAG），随后逐步派发给可信/沙箱 Executor 节点，提供全局视野，避免长任务链中迷失方向。
+● ReAct (推理与行动的交织)： 隔离沙箱内的 pi-mono 严格遵循 Thought(思考) -> Action(原子工具) -> Observation(环境反馈) 的微观闭环，实现实时的环境交互。
+● Reflexion (反思模式)： 从失败中进化的自我纠错。当沙箱内代码运行报错（触发 stderr）时，引入 Evaluator 逻辑生成反思日志（Reflection），存入上下文后重写代码再次尝试，榨取模型极限。
+● Tool Use (原子工具调用)： 突破 LLM 纯文本边界，在沙箱内仅提供 Read, Write, Edit, Bash 四个最底层的原子工具，让大模型自主组合完成复杂任务。
+三、 系统总体拓扑架构 (System Topology)
+系统采用 “嵌套智能体 (Nested Agent) + 代理网关 + 统一监控 + 动态前端” 的宏大拓扑。
+1. 核心技术栈与模块定位
+| 模块分层 | 核心技术栈 | 职责定位 |
+| 表现交互层 | React / Vue (A2UI) | 前端组件注册中心。基于 WebSocket 接收结构化指令，动态渲染数据图表与进度微件。 |
+| 接入与网关层 | FastAPI | 纯异步 ASGI 网关。负责鉴权、WebSocket 流式连接维持、内部微服务 gRPC/HTTP 接口暴露。 |
+| 状态守护层 | Temporal | 分布式状态机。接管复杂的 Plan-and-Execute 长任务流，提供宕机恢复、重试兜底。 |
+| 主控编排层 | PydanticAI | 系统的“Python 大脑”。负责 RAG 知识检索、工具分发、意图拆解。 |
+| 隔离执行层 | E2B Sandbox + pi-mono | 系统的“TS 打工人”。在沙箱内获取最高权限进行自主探索和编码。 |
+| 安全代理层 | LiteLLM | 轻量级 LLM 网关。负责派发沙箱临时 Token、统一路由多家大模型厂商的 API。 |
+| LLM 监控层 | Langfuse | 开源 LLM 工程平台。负责全链路 Trace 追踪、Token 成本计算与 Prompt 调试。 |
+四、 混合嵌套执行流 (Execution Flow)
+当用户输入复杂请求（如：“对比数据库中近三个月的 AI 架构相关专利，并写一个 Python 脚本生成趋势图表”）时，系统的标准处理链路如下：
+1. 意图接收与初始化： FastAPI 接收请求，生成唯一的 Trace_ID，并将请求上下文推入 Temporal Workflow。
+2. 全局规划 (Planner)： PydanticAI 初始化的 Orchestrator_Agent 介入，将任务拆解为 DAG 步骤。
+3. 可信子任务执行 (Native Worker)：
+  ○ 路由给 Python 原生的 PatentQuery_Worker。
+  ○ 该 Worker 携带内网凭证，从 Milvus 向量数据库安全召回相关的专利 JSON 数据。
+4. 环境整备 (Provisioning)：
+  ○ Python 后端通过 LiteLLM 生成寿命为 10 分钟的临时 LLM Token。
+  ○ 启动 E2B 专利专属沙箱，将刚查到的专利 JSON 数据和临时 Token 注入沙箱。
+5. 沙箱高危任务下发 (Sandboxed Worker)：
+  ○ Python 调用 PydanticAI 的 delegate_to_sandbox Tool，触发沙箱命令。
+6. 沙箱内自主循环 (Micro-ReAct)：pi-mono 在沙箱内部自主执行 Thought -> Code -> Bash -> Reflexion 闭环。
+7. 回收与响应 (Teardown & Response)： 任务完成，Python 从沙箱读出最终的图表文件，销毁沙箱，通过 A2UI 协议通过 FastAPI 响应前端。
+五、 核心架构难点与进阶设计方案
+1. 密钥零信任设计 (LLM Gateway Proxy)
+问题： 避免沙箱内执行的不可信代码窃取真实的根密钥。
+解决方案： 旁路部署 LiteLLM 网关。PydanticAI 启动沙箱时，注入 LiteLLM 实时签发的临时受限 JWT Token，并将接口 Base URL 劫持到内网代理。
+2. 结构化 IPC 通信 (Structured IPC for Streaming)
+问题： 原生 pi-mono 输出包含 ANSI 控制字符，Python 直接读取会乱码。
+解决方案： 改造沙箱内 pi-mono 配置，静默控制台，将结构化状态实时追加到 .pi_state.jsonl 文件。Python 宿主通过 E2B 的 files.watch 轮询读取该文件实现跨进程通信。
+六、 前后端交互引擎：轻量级 A2UI (Agent-to-UI) 架构
+为了彻底颠覆传统大模型“Markdown 纯文本输出”的枯燥体验，本系统在展示层引入 A2UI (Agent-to-UI) 动态界面架构（Server-Driven UI 的智能体延伸版本）。
+1. 架构理念 (Component Registry)
+前端（React/Vue）不再是写死路由的静态页面，而是一个“组件渲染引擎（Component Registry）”。后端 Agent 在推理过程中，不再仅仅生成文本，而是利用 Pydantic 强校验输出包含特定 schema 的 JSON UI 渲染指令，通过 WebSocket 下发给前端动态组装。
+2. 核心通信协议契约
+依托 PydanticAI 的结构化输出能力，后端定义标准化的 A2UI 消息帧投递至前端：
+{
+  "trace_id": "req-8899-abc",
+  "event_type": "render_widget",
+  "ui_component": "PatentTrendChart", // 动态映射到前端的具体图表组件
+  "props": {
+    "title": "近三个月 AI 专利趋势",
+    "xAxis": ["1月", "2月", "3月"],
+    "seriesData": [120, 240, 560]
+  }
+}
+3. 轻量级 A2UI 落地三大核心场景
+1. 执行状态微件 (Process UI)： 利用第五部分的“结构化 IPC 通信”，将沙箱内 pi-mono 的底层动作（如“正在安装 matplotlib”、“代码执行报错重试中”）映射为前端带有进度动画和终端样式的可折叠微件（类似 Cursor 的 Thinking 进度条）。
+2. 结构化数据图表 (Data Widget)： 当 Python 端的查询 Agent 拿到复杂报表数据时，通过 Pydantic 强制其输出图表 JSON，前端直接唤起 ECharts 等组件交互式展示，而非生硬地打印 Markdown 表格。
+3. 安全制品预览舱 (Artifacts UI)： 如果任务是要求 Agent 生成一段完整的前端代码网页，系统利用 E2B 沙箱将其挂载，并在前端分配一个独立的、被严格沙箱化（Sandboxed IFrame）的窗口进行实时预览渲染（复刻 Claude Artifacts 的体验）。
+七、 全链路可观测性与监控体系 (Langfuse Integration)
+引入 Langfuse 作为全局监控枢纽，彻底消灭 LLM 调用的黑盒状态。
+1. 无缝集成： 依托 LiteLLM 的原生支持（success_callbacks = ["langfuse"]），零代码侵入实现跨 Python 宿主机与 TS 沙箱的全链路打点。
+2. 统一 Trace 追踪： 将 FastAPI 传入的 Trace_ID 作为全局纽带。研发人员即可在一个火焰图（Trace Tree）中，清晰看到：PydanticAI 的规划耗时 -> 数据库检索 -> 沙箱内 pi-mono 的试错链条。
+八、 架构设计参考与灵感来源 (Design References & Inspirations)
+本核心引擎的设计深度吸收了工业界最前沿的架构范式：
+1. OpenClaw (极简主义与自我演进)： 吸收其 Pi Agent 理念，隔离执行层（E2B + pi-mono）仅提供原子能力，极大降低主控引擎的工具维护成本和幻觉率。
+2. Claude Code & Artifacts (沙箱隔离与动态 UI)： 引入 E2B 隔离沙箱复刻其本地真实执行的闭环能力；并通过 A2UI 架构复刻其独创的动态内容预览（Artifacts）体验。
+3. Cursor / Cline (结构化流式 UI 与进程通信)： 基于文件系统的 JSONL 流通信机制与 A2UI 的状态微件，旨在复刻顶尖 AI IDE 级的前端实时流式展示体验，告别命令行乱码。
+4. 摒弃传统“巨石”范式 (Anti-Patterns)： 刻意避开“把所有工具全部塞进单个庞大 Python 进程”的单体危险设计，实现微服务化与零信任安全。
