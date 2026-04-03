@@ -69,7 +69,8 @@
       "Bash(poetry source add:*)",
       "Bash(.venv/bin/pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/)",
       "Bash(pip3 install:*)",
-      "Bash(python3.12:*)"
+      "Bash(python3.12:*)",
+      "Bash(git rm:*)"
     ]
   }
 }
