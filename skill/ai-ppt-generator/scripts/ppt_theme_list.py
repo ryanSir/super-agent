@@ -35,7 +35,7 @@ def ppt_theme_list(api_key: str):
         if count > 100:
             break
         themes.append({
-            "style_name_list": theme["style_name_list"],
+            "style_name_list": theme.get("style_list", theme.get("style_name_list", [])),
             "style_id": theme["style_id"],
             "tpl_id": theme["tpl_id"],
         })

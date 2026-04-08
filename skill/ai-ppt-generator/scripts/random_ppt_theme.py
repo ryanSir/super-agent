@@ -49,7 +49,7 @@ def categorize_themes(themes):
     }
     
     for theme in themes:
-        style_names = theme.get("style_name_list", [])
+        style_names = theme.get("style_name_list", theme.get("style_list", []))
         if not style_names:
             categorized["默认"].append(theme)
             continue
@@ -247,7 +247,7 @@ def generate_ppt_with_random_theme(query, preferred_category=None):
     
     style_id = selected_theme.get("style_id", 0)
     tpl_id = selected_theme.get("tpl_id")
-    style_names = selected_theme.get("style_name_list", ["默认"])
+    style_names = selected_theme.get("style_name_list", selected_theme.get("style_list", ["默认"]))
     
     print(f"Selected template: {style_names[0]} (tpl_id: {tpl_id})", file=sys.stderr)
     
