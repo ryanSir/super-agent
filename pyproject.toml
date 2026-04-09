@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "企业级混合智能体核心引擎 - Python 宏观编排 + TS 沙箱微观执行"
 authors = ["zhangyang"]
 readme = "README.md"
-packages = [{include = "src"}]
+packages = [{include = "src"}, {include = "src_deepagent"}]
 
 [tool.poetry.dependencies]
 python = "^3.12"
@@ -25,6 +25,7 @@ websockets = "^14.1"
 sse-starlette = "^2.2"
 temporalio = "^1.9"
 python-dotenv = "^1.0"
+pydantic-deep = {extras = ["cli"], version = "^0.1"}
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3"
