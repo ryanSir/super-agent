@@ -17,7 +17,12 @@ logger = get_logger(__name__)
 
 
 class MemoryStorage(ABC):
-    """记忆存储抽象基类"""
+    """记忆存储抽象基类
+
+    扩展点：
+    - consolidate(): 记忆整合（autoDream），合并碎片记忆为结构化摘要
+    - search(): 语义检索（未来可接入向量搜索）
+    """
 
     @abstractmethod
     async def load(self, user_id: str) -> MemoryData | None:
@@ -34,6 +39,32 @@ class MemoryStorage(ABC):
     @abstractmethod
     async def get_facts(self, user_id: str, limit: int = 100) -> list[Fact]:
         """获取事实列表（按时间倒序）"""
+
+    async def consolidate(self, user_id: str) -> int:
+        """整合碎片记忆（autoDream 扩展点）
+
+        将多条碎片 facts 合并为结构化摘要，减少冗余和矛盾。
+        默认不做任何操作，子类可覆写实现。
+
+        Returns:
+            合并/删除的 facts 数量
+        """
+        return 0
+
+    async def search(self, user_id: str, query: str, top_k: int = 10) -> list[Fact]:
+        """语义检索记忆（扩展点）
+
+        默认回退到 get_facts 全量返回，子类可接入向量搜索。
+
+        Args:
+            user_id: 用户 ID
+            query: 检索查询
+            top_k: 返回数量
+
+        Returns:
+            相关的 facts 列表
+        """
+        return await self.get_facts(user_id, limit=top_k)
 
 
 class RedisMemoryStorage(MemoryStorage):

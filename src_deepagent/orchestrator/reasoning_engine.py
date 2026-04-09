@@ -57,14 +57,34 @@ class ComplexityScore:
 
 
 @dataclass(frozen=True)
-class ResolvedResources:
-    """一次获取的工具资源，整个请求生命周期内共享"""
+class InfraResources:
+    """底层基础设施资源（被桥接工具依赖）"""
 
     workers: dict[str, Any]
     mcp_toolsets: list[Any]
+
+
+@dataclass(frozen=True)
+class PromptContext:
+    """注入 System Prompt 的文本内容"""
+
     skill_summary: str
-    bridge_tools: list[Callable]
     deferred_tool_names: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class ResolvedResources:
+    """一次获取的全部资源，整个请求生命周期内共享
+
+    三层结构：
+    - infra: 底层资源（Workers/MCP 连接），被 agent_tools 依赖
+    - agent_tools: 给 LLM 的工具函数列表，基于 infra 构建
+    - prompt_ctx: 给 System Prompt 的文本内容
+    """
+
+    infra: InfraResources
+    agent_tools: list[Callable]
+    prompt_ctx: PromptContext
 
 
 @dataclass(frozen=True)
@@ -425,26 +445,35 @@ class ReasoningEngine:
         # 桥接工具（基于 workers 创建）
         from src_deepagent.sub_agents.bridge import create_worker_tools
 
-        bridge_tools = create_worker_tools(self._workers)
+        agent_tools = create_worker_tools(self._workers)
 
         # MCP 延迟加载工具名称（只注入名称到 prompt，不加载完整 schema）
         from src_deepagent.orchestrator.deferred_tools import deferred_tool_registry
 
         deferred_tool_names = deferred_tool_registry.get_tool_names()
 
-        self._resources_cache = ResolvedResources(
+        # 构建三层资源结构
+        infra = InfraResources(
             workers=self._workers,
             mcp_toolsets=mcp_toolsets,
+        )
+
+        prompt_ctx = PromptContext(
             skill_summary=skill_summary,
-            bridge_tools=bridge_tools,
             deferred_tool_names=deferred_tool_names,
+        )
+
+        self._resources_cache = ResolvedResources(
+            infra=infra,
+            agent_tools=agent_tools,
+            prompt_ctx=prompt_ctx,
         )
 
         logger.info(
             f"[ReasoningEngine] 资源获取完成 | "
             f"workers={len(self._workers)} "
             f"mcp={len(mcp_toolsets)} "
-            f"bridge_tools={len(bridge_tools)} "
+            f"agent_tools={len(agent_tools)} "
             f"deferred_tools={len(deferred_tool_names)}"
         )
         return self._resources_cache

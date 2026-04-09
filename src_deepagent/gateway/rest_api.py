@@ -155,7 +155,7 @@ async def _run_orchestration(
             await _session_manager.update_status(session_id, SessionStatus.EXECUTING)
 
         # Stage 2: Execute
-        sub_agent_configs = create_sub_agent_configs(plan.resources.bridge_tools)
+        sub_agent_configs = create_sub_agent_configs(plan.resources.agent_tools)
         agent, deps = create_orchestrator_agent(
             plan=plan,
             sub_agent_configs=sub_agent_configs,

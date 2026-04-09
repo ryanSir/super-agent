@@ -57,6 +57,7 @@ def build_dynamic_instructions(
     deferred_tool_names: list[str] | None = None,
     max_concurrent_subagents: int = 3,
     execution_mode: str = "auto",
+    runtime_context: dict[str, str] | None = None,
 ) -> str:
     """构建主 Agent 的动态 system prompt
 
@@ -69,6 +70,7 @@ def build_dynamic_instructions(
         deferred_tool_names: MCP 延迟加载工具名称列表
         max_concurrent_subagents: Sub-Agent 最大并发数
         execution_mode: 执行模式（direct/auto/plan_and_execute/sub_agent）
+        runtime_context: 运行时上下文（session_id/user_id/current_time 等）
 
     Returns:
         完整的 system prompt
@@ -78,10 +80,21 @@ def build_dynamic_instructions(
     # 1. 角色定义
     sections.append(_load_template("role"))
 
-    # 2. 思考策略
+    # 2. 运行时上下文（System Content）
+    if runtime_context:
+        ctx_template = _load_template("runtime_context")
+        sections.append(ctx_template.format(
+            session_id=runtime_context.get("session_id", ""),
+            user_id=runtime_context.get("user_id", ""),
+            current_time=runtime_context.get("current_time", ""),
+            execution_mode=execution_mode,
+            user_context=runtime_context.get("user_context", ""),
+        ))
+
+    # 3. 思考策略
     sections.append(_load_template("thinking_style"))
 
-    # 3. 澄清系统
+    # 4. 澄清系统
     sections.append(_load_template("clarification"))
 
     # 4. 执行模式指导（根据 mode 加载对应模板）

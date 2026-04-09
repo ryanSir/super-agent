@@ -1,6 +1,6 @@
 """Sub-Agent 配置工厂
 
-基于 bridge_tools 创建三个角色的 SubAgentConfig 声明式配置。
+基于 agent_tools 创建三个角色的 SubAgentConfig 声明式配置。
 """
 
 from __future__ import annotations
@@ -19,17 +19,17 @@ logger = get_logger(__name__)
 
 
 def create_sub_agent_configs(
-    bridge_tools: list[Callable],
+    agent_tools: list[Callable],
 ) -> list[dict[str, Any]]:
     """创建三个角色的 Sub-Agent 配置
 
     Args:
-        bridge_tools: 已创建的桥接工具列表（从 ResolvedResources 传入）
+        agent_tools: 已创建的工具函数列表（从 ResolvedResources.agent_tools 传入）
 
     Returns:
         SubAgentConfig 兼容的配置字典列表
     """
-    tool_map = {t.__name__: t for t in bridge_tools}
+    tool_map = {t.__name__: t for t in agent_tools}
 
     configs = [
         {
@@ -94,7 +94,7 @@ def create_sub_agent_configs(
     logger.info(
         f"Sub-Agent 配置创建完成 | "
         f"roles={[c['name'] for c in configs]} "
-        f"bridge_tools={len(bridge_tools)}"
+        f"agent_tools={len(agent_tools)}"
     )
     return configs
 

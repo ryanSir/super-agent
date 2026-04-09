@@ -53,9 +53,9 @@ def create_orchestrator_agent(
         for c in sub_agent_configs
     ]
     instructions = build_dynamic_instructions(
-        skill_summary=plan.resources.skill_summary,
+        skill_summary=plan.resources.prompt_ctx.skill_summary,
         sub_agent_roles=role_descriptions,
-        deferred_tool_names=plan.resources.deferred_tool_names,
+        deferred_tool_names=plan.resources.prompt_ctx.deferred_tool_names,
         max_concurrent_subagents=settings.max_concurrent_subagents,
         execution_mode=plan.mode.value,
     )
@@ -89,13 +89,13 @@ def create_orchestrator_agent(
         cost_tracking=True,
 
         # 工具（桥接工具）
-        tools=plan.resources.bridge_tools,
+        tools=plan.resources.agent_tools,
 
         # Sub-Agent 配置
         subagents=sub_agent_configs,
 
         # MCP（已获取）
-        toolsets=plan.resources.mcp_toolsets or [],
+        toolsets=plan.resources.infra.mcp_toolsets or [],
 
         name="Orchestrator",
     )
@@ -108,7 +108,7 @@ def create_orchestrator_agent(
     logger.info(
         f"主 Agent 创建完成 | mode={plan.mode.value} "
         f"sub_agents={[c['name'] for c in sub_agent_configs]} "
-        f"tools={len(plan.resources.bridge_tools)}"
+        f"tools={len(plan.resources.agent_tools)}"
     )
     return agent, deps
 
@@ -130,7 +130,7 @@ def _create_fallback_agent(
     )
 
     # 注册桥接工具
-    for tool_fn in plan.resources.bridge_tools:
+    for tool_fn in plan.resources.agent_tools:
         agent.tool(tool_fn)
 
     logger.warning("使用 Fallback Agent（pydantic-deep 未安装）")
