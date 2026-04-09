@@ -88,6 +88,21 @@ class MemorySettings(BaseSettings):
     model_config = {"env_prefix": "", "extra": "ignore", "env_file": ".env"}
 
 
+class ReasoningSettings(BaseSettings):
+    """推理引擎配置"""
+
+    # LLM 兜底：模糊区间阈值
+    fuzzy_zone_low: float = Field(default=0.35, alias="REASONING_FUZZY_ZONE_LOW")
+    fuzzy_zone_high: float = Field(default=0.55, alias="REASONING_FUZZY_ZONE_HIGH")
+    llm_classify_timeout: float = Field(default=5.0, alias="REASONING_LLM_CLASSIFY_TIMEOUT")
+    llm_classify_enabled: bool = Field(default=True, alias="REASONING_LLM_CLASSIFY_ENABLED")
+
+    # 模式升级
+    escalation_enabled: bool = Field(default=True, alias="REASONING_ESCALATION_ENABLED")
+
+    model_config = {"env_prefix": "", "extra": "ignore", "env_file": ".env"}
+
+
 class AppSettings(BaseSettings):
     """应用全局配置"""
 
@@ -105,6 +120,7 @@ class AppSettings(BaseSettings):
     langfuse: LangfuseSettings = Field(default_factory=LangfuseSettings)
     milvus: MilvusSettings = Field(default_factory=MilvusSettings)
     memory: MemorySettings = Field(default_factory=MemorySettings)
+    reasoning: ReasoningSettings = Field(default_factory=ReasoningSettings)
 
     model_config = {"env_prefix": "", "extra": "ignore", "env_file": ".env"}
 

@@ -6,7 +6,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import enum
+import json
 import re
 from dataclasses import dataclass, field
 from typing import Any, Callable
@@ -95,6 +97,38 @@ class ExecutionPlan:
     complexity: ComplexityScore
     prompt_prefix: str
     resources: ResolvedResources
+    escalated_from: ExecutionMode | None = None
+
+
+def escalate_plan(plan: ExecutionPlan, target: ExecutionMode) -> ExecutionPlan:
+    """将执行计划升级到更高模式
+
+    仅支持 DIRECT → AUTO 升级路径，保留原有资源和复杂度信息。
+    """
+    _ALLOWED_ESCALATIONS: dict[ExecutionMode, set[ExecutionMode]] = {
+        ExecutionMode.DIRECT: {ExecutionMode.AUTO},
+    }
+
+    allowed = _ALLOWED_ESCALATIONS.get(plan.mode, set())
+    if target not in allowed:
+        raise ReasoningError(
+            f"不支持的模式升级路径: {plan.mode.value} → {target.value}"
+        )
+
+    # 根据目标模式选择 prompt_prefix
+    prefix_map = {
+        ExecutionMode.AUTO: "",
+        ExecutionMode.PLAN_AND_EXECUTE: _PLAN_EXECUTE_PREFIX,
+        ExecutionMode.SUB_AGENT: _SUB_AGENT_PREFIX,
+    }
+
+    return ExecutionPlan(
+        mode=target,
+        complexity=plan.complexity,
+        prompt_prefix=prefix_map.get(target, ""),
+        resources=plan.resources,
+        escalated_from=plan.mode,
+    )
 
 
 # ── 规则匹配模式 ─────────────────────────────────────────
@@ -246,7 +280,7 @@ class ReasoningEngine:
             ExecutionPlan 包含模式、复杂度、prompt 前缀和已获取资源
         """
         # Step 1: 意图理解 + 复杂度评估 → 执行模式
-        complexity = self._evaluate_complexity(query)
+        complexity = await self._evaluate_complexity(query)
         execution_mode = self._resolve_mode(query, mode, complexity)
 
         # Step 2: 获取工具资源（一次性，缓存复用）
@@ -305,7 +339,7 @@ class ReasoningEngine:
 
     # ── 复杂度评估 ────────────────────────────────────────
 
-    def _evaluate_complexity(self, query: str) -> ComplexityScore:
+    async def _evaluate_complexity(self, query: str) -> ComplexityScore:
         """五维度规则评估 + 模糊区间 LLM 兜底"""
         dimensions = {
             "task_count": self._estimate_task_count(query),
@@ -318,9 +352,24 @@ class ReasoningEngine:
         score = sum(dimensions[k] * self.WEIGHTS[k] for k in self.WEIGHTS)
         score = max(0.0, min(1.0, score))
 
-        # TODO: 模糊区间 LLM 兜底（0.35~0.55）
-        # if 0.35 <= score <= 0.55:
-        #     score = await self._llm_classify(query, score)
+        # 模糊区间 LLM 兜底
+        from src_deepagent.config.settings import get_settings
+
+        settings = get_settings()
+        fuzzy_low = settings.reasoning.fuzzy_zone_low
+        fuzzy_high = settings.reasoning.fuzzy_zone_high
+
+        if (
+            settings.reasoning.llm_classify_enabled
+            and fuzzy_low <= score <= fuzzy_high
+        ):
+            llm_score = await self._llm_classify(query, score, dimensions)
+            if llm_score is not None:
+                logger.info(
+                    f"[ReasoningEngine] LLM 兜底生效 | "
+                    f"rule_score={score:.2f} → llm_score={llm_score:.2f}"
+                )
+                score = llm_score
 
         level = self._score_to_level(score)
         suggested_mode = _LEVEL_TO_MODE[level]
@@ -426,6 +475,86 @@ class ReasoningEngine:
         if score < 0.75:
             return ComplexityLevel.HIGH
         return ComplexityLevel.VERY_HIGH
+
+    async def _llm_classify(
+        self,
+        query: str,
+        rule_score: float,
+        dimensions: dict[str, float],
+    ) -> float | None:
+        """模糊区间 LLM 兜底分类
+
+        当规则评估分数落在模糊区间时，调用 fast_model 进行更精确的判断。
+        超时或异常时返回 None（保留规则分数）。
+        """
+        from src_deepagent.config.settings import get_settings
+        from src_deepagent.llm.config import get_model
+
+        settings = get_settings()
+        timeout = settings.reasoning.llm_classify_timeout
+
+        prompt = (
+            "你是一个任务复杂度评估器。根据用户查询判断其复杂度分数（0.0~1.0）。\n\n"
+            "评分标准：\n"
+            "- 0.0~0.25: 简单任务（单步骤，直接回答或单次工具调用）\n"
+            "- 0.25~0.50: 中等任务（需要自主判断使用哪些工具）\n"
+            "- 0.50~0.75: 复杂任务（多步骤，需要规划或多个子任务）\n"
+            "- 0.75~1.0: 非常复杂（需要多个专业角色协作）\n\n"
+            f"规则引擎预评估：score={rule_score:.2f}，维度分数={json.dumps(dimensions, ensure_ascii=False)}\n\n"
+            f"用户查询：{query[:500]}\n\n"
+            '请只返回 JSON：{"score": 0.xx, "reason": "一句话理由"}'
+        )
+
+        try:
+            from pydantic_ai import Agent
+
+            classifier = Agent(
+                model=get_model("fast"),
+                output_type=str,
+                instructions="你是复杂度评估器，只返回 JSON，不要其他内容。",
+                name="ComplexityClassifier",
+            )
+
+            result = await asyncio.wait_for(
+                classifier.run(prompt),
+                timeout=timeout,
+            )
+
+            raw = result.output if hasattr(result, "output") else str(result)
+            # 提取 JSON（兼容 markdown code block 包裹）
+            raw = raw.strip()
+            if raw.startswith("```"):
+                raw = raw.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+
+            parsed = json.loads(raw)
+            llm_score = float(parsed["score"])
+            reason = parsed.get("reason", "")
+
+            if not 0.0 <= llm_score <= 1.0:
+                logger.warning(f"[ReasoningEngine] LLM 返回分数越界: {llm_score}")
+                return None
+
+            logger.info(
+                f"[ReasoningEngine] LLM 分类完成 | "
+                f"score={llm_score:.2f} reason={reason}"
+            )
+            return llm_score
+
+        except asyncio.TimeoutError:
+            logger.warning(
+                f"[ReasoningEngine] LLM 分类超时({timeout}s)，保留规则分数"
+            )
+            return None
+        except (json.JSONDecodeError, KeyError, ValueError) as e:
+            logger.warning(
+                f"[ReasoningEngine] LLM 分类结果解析失败 | error={e}"
+            )
+            return None
+        except Exception as e:
+            logger.warning(
+                f"[ReasoningEngine] LLM 分类异常 | error={e}"
+            )
+            return None
 
     # ── 资源获取 ──────────────────────────────────────────
 

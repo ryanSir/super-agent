@@ -81,7 +81,8 @@
 | 集成模式 | Agent-as-Tool | Sub-Agent 对主 Agent 是工具函数，未来可扩展到 multi-agent |
 | Agent Runtime | pydantic-deepagents | 统一技术栈，SubAgentToolset/TodoToolset/上下文压缩开箱即用 |
 | 推理引擎 | 自建 ReasoningEngine | 复杂度评估+模式路由是核心差异化，deepagents 不提供 |
-| 复杂度评估 | 规则优先 + LLM 兜底 | 五维度加权零延迟，模糊区间调 fast_model 兜底 |
+| 复杂度评估 | 规则优先 + LLM 兜底 | 五维度加权零延迟，模糊区间（0.35~0.55）调 fast_model 兜底，超时 5s 降级 |
+| 模式升级 | DIRECT → AUTO 自动升级 | DIRECT 执行后检测空输出/自述无法完成，自动升级到 AUTO 重试（最多一次） |
 | Sub-Agent 角色 | 预置 3 个 + 自定义扩展 | 预置 Research/Analysis/Writing，用户可通过 AGENT.md 注册自定义角色 |
 | 沙箱调用 | 双通道 | 简单任务主 Agent 直接调，复杂任务 sub-agent 内部调 |
 | 工具资源 | 一次获取，向下传递 | ReasoningEngine 统一获取，避免 MCP 重复连接 |
@@ -111,7 +112,7 @@ task("researcher", instruction)     ← 调 Sub-Agent（有独立 LLM）
   ↓
 ReasoningEngine.decide(query)
   ├─ 意图理解（规则匹配）
-  ├─ 复杂度评估（五维度 + LLM 兜底）
+  ├─ 复杂度评估（五维度 + 模糊区间 LLM 兜底）
   ├─ 执行模式决策 → ExecutionMode
   ├─ 获取工具资源 → ResolvedResources（一次获取，三层结构）
   │    ├─ infra: InfraResources（底层资源）
@@ -126,7 +127,9 @@ ReasoningEngine.decide(query)
 ┌─────────────┬──────────────┬────────────────┬──────────────────┐
 │   DIRECT    │     AUTO     │ PLAN_AND_EXEC  │    SUB_AGENT     │
 │ 主Agent直答 │ 主Agent+工具 │ 主Agent+DAG    │ 主Agent委派子Agent│
-└─────────────┴──────────────┴────────────────┴──────────────────┘
+└──────┬──────┴──────────────┴────────────────┴──────────────────┘
+       │ 升级检查（空输出/自述无法完成）
+       └──→ AUTO（最多一次，推送 mode_escalated 事件）
        │              │              │                  │
        └──────────────┴──────────────┴──────────────────┘
                               ↓
@@ -208,6 +211,58 @@ ReasoningEngine.decide(query)
 | 适用 | 步骤少、数据量小 | 步骤多、数据量大、可并行 |
 
 简单说：PLAN_AND_EXECUTE 是"一个人按计划干活"，SUB_AGENT 是"一个人指挥一群人干活"。
+
+### 模式升级机制（DIRECT → AUTO）
+
+当 DIRECT 模式执行后发现 Agent 无法完成任务时，自动升级到 AUTO 模式重试。
+
+```
+DIRECT 执行完成
+  ↓
+_needs_escalation() 检查
+  ├─ result 为 None → 升级
+  ├─ 输出为空或 < 10 字符 → 升级
+  ├─ 输出前 200 字符包含自述无法完成的信号词 → 升级
+  │    （"无法直接回答"/"无法完成"/"需要使用工具" 等）
+  └─ 其他情况 → 不升级，正常返回
+  ↓
+escalate_plan(plan, AUTO)
+  ├─ 仅支持 DIRECT → AUTO 路径
+  ├─ escalated_from 字段防止二次升级
+  └─ 推送 mode_escalated 事件到前端
+```
+
+设计要点：
+- 只检查输出前 200 字符（Agent 自述区域），避免在搜索结果正文中误匹配
+- 信号词收紧为明确的自述无法完成表达，排除"需要搜索"等常见内容描述词
+- 通过 `REASONING_ESCALATION_ENABLED` 环境变量可关闭
+
+### 复杂度评估 LLM 兜底
+
+当五维度规则评估分数落在模糊区间（默认 0.35~0.55）时，调用 fast_model 进行二次判断。
+
+```
+_evaluate_complexity(query)
+  ├─ 五维度规则评估 → score
+  ├─ score 在 [0.35, 0.55] 区间？
+  │    ├─ 是 → _llm_classify(query, score, dimensions)
+  │    │    ├─ 调 fast_model（gpt-4o-mini），5s 超时
+  │    │    ├─ 返回 JSON: {"score": 0.xx, "reason": "..."}
+  │    │    ├─ 超时/解析失败 → 保留规则分数（降级）
+  │    │    └─ 成功 → 用 LLM 分数替换规则分数
+  │    └─ 否 → 直接使用规则分数
+  └─ score → ComplexityLevel → suggested_mode
+```
+
+配置项（`ReasoningSettings`，环境变量绑定）：
+
+| 环境变量 | 默认值 | 说明 |
+|---------|--------|------|
+| `REASONING_FUZZY_ZONE_LOW` | 0.35 | 模糊区间下界 |
+| `REASONING_FUZZY_ZONE_HIGH` | 0.55 | 模糊区间上界 |
+| `REASONING_LLM_CLASSIFY_TIMEOUT` | 5.0 | LLM 分类超时（秒） |
+| `REASONING_LLM_CLASSIFY_ENABLED` | true | 是否启用 LLM 兜底 |
+| `REASONING_ESCALATION_ENABLED` | true | 是否启用模式升级 |
 
 ---
 
@@ -471,7 +526,8 @@ tools: [execute_db_query, execute_sandbox]
    ↓
 3. ReasoningEngine.decide(query, mode)
    ├─ _resolve_mode() → ExecutionMode（三级分类）
-   ├─ _evaluate_complexity() → ComplexityScore（五维度加权）
+   ├─ _evaluate_complexity() → ComplexityScore（五维度加权 + 模糊区间 LLM 兜底）
+   │    └─ 分数落在 0.35~0.55 时调 fast_model 二次判断（5s 超时降级）
    ├─ _resolve_resources() → ResolvedResources（一次获取）
    └─ _assemble_plan() → ExecutionPlan
    ↓
@@ -485,6 +541,12 @@ tools: [execute_db_query, execute_sandbox]
    ├─ AUTO: 主 Agent 自主判断调哪些工具
    ├─ PLAN_AND_EXECUTE: plan_and_decompose → 按 DAG 顺序执行
    └─ SUB_AGENT: task() 委派 → Sub-Agent 独立执行 → 主 Agent 综合
+   ↓
+5.5 模式升级检查（仅 DIRECT → AUTO，最多一次）
+   ├─ 检测条件：空输出 / 过短输出 / Agent 自述无法完成
+   ├─ 只检查输出前 200 字符，避免在搜索结果中误匹配
+   ├─ 升级时推送 mode_escalated 事件到前端
+   └─ escalated_from 字段防止二次升级
    ↓
 6. 事件推送 → Redis Stream → SSE → 前端
    ↓

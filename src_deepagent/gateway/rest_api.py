@@ -15,7 +15,11 @@ from fastapi.responses import StreamingResponse
 
 from src_deepagent.core.logging import get_logger, session_id_var, trace_id_var
 from src_deepagent.orchestrator.agent_factory import create_orchestrator_agent
-from src_deepagent.orchestrator.reasoning_engine import ReasoningEngine
+from src_deepagent.orchestrator.reasoning_engine import (
+    ExecutionMode,
+    ReasoningEngine,
+    escalate_plan,
+)
 from src_deepagent.schemas.agent import OrchestratorOutput, SessionStatus
 from src_deepagent.schemas.api import QueryRequest, QueryResponse
 from src_deepagent.state.session_manager import SessionManager
@@ -132,12 +136,79 @@ async def stream_events(session_id: str, request: Request) -> StreamingResponse:
 # ── 编排执行 ─────────────────────────────────────────────
 
 
+def _needs_escalation(result: Any, plan: Any) -> bool:
+    """判断 DIRECT 模式结果是否需要升级到 AUTO
+
+    升级条件（满足任一）：
+    - Agent 执行异常（result 为 None）
+    - 输出为空或过短（LLM 无法直接回答）
+    - 输出开头包含明确的自述无法完成的文本
+
+    注意：只检查输出前 200 字符（Agent 自述区域），避免在长内容中误匹配。
+    """
+    if plan.mode != ExecutionMode.DIRECT:
+        return False
+
+    if plan.escalated_from is not None:
+        # 已经是升级后的计划，不再二次升级
+        return False
+
+    from src_deepagent.config.settings import get_settings
+
+    if not get_settings().reasoning.escalation_enabled:
+        return False
+
+    if result is None:
+        return True
+
+    output = result.output if hasattr(result, "output") else str(result)
+    answer = output if isinstance(output, str) else (
+        output.answer if hasattr(output, "answer") else str(output)
+    )
+
+    # 空输出或过短
+    if not answer or len(answer.strip()) < 10:
+        return True
+
+    # 只检查开头 200 字符，避免在搜索结果等长内容中误匹配
+    head = answer.strip()[:200]
+
+    # Agent 明确自述无法完成（排除"需要搜索/需要查询"等常见内容描述词）
+    _ESCALATION_SIGNALS = (
+        "无法直接回答", "无法完成", "我无法", "无法回答",
+        "需要使用工具", "需要调用工具",
+        "I cannot directly", "I don't have access",
+        "I'm unable to", "I need to use tools",
+    )
+    return any(signal in head for signal in _ESCALATION_SIGNALS)
+
+
+async def _execute_plan(
+    plan: Any,
+    request: QueryRequest,
+    session_id: str,
+    trace_id: str,
+) -> Any:
+    """执行单次编排计划，返回 agent result"""
+    sub_agent_configs = create_sub_agent_configs(plan.resources.agent_tools)
+    agent, deps = create_orchestrator_agent(
+        plan=plan,
+        sub_agent_configs=sub_agent_configs,
+        session_id=session_id,
+        trace_id=trace_id,
+        publish_fn=_publish,
+    )
+
+    effective_query = plan.prompt_prefix + request.query
+    return await agent.run(effective_query, deps=deps)
+
+
 async def _run_orchestration(
     session_id: str,
     trace_id: str,
     request: QueryRequest,
 ) -> None:
-    """异步执行编排流程"""
+    """异步执行编排流程（支持 DIRECT → AUTO 模式升级）"""
     session_id_var.set(session_id)
     trace_id_var.set(trace_id)
 
@@ -155,20 +226,22 @@ async def _run_orchestration(
             await _session_manager.update_status(session_id, SessionStatus.EXECUTING)
 
         # Stage 2: Execute
-        sub_agent_configs = create_sub_agent_configs(plan.resources.agent_tools)
-        agent, deps = create_orchestrator_agent(
-            plan=plan,
-            sub_agent_configs=sub_agent_configs,
-            session_id=session_id,
-            trace_id=trace_id,
-            publish_fn=_publish,
-        )
+        result = await _execute_plan(plan, request, session_id, trace_id)
 
-        # 构建 effective query
-        effective_query = plan.prompt_prefix + request.query
-
-        # 执行 Agent
-        result = await agent.run(effective_query, deps=deps)
+        # Stage 2.5: 模式升级检查（仅 DIRECT → AUTO，最多一次）
+        if _needs_escalation(result, plan):
+            escalated = escalate_plan(plan, ExecutionMode.AUTO)
+            logger.info(
+                f"模式升级 | session_id={session_id} "
+                f"{plan.mode.value} → {escalated.mode.value}"
+            )
+            await _publish(session_id, {
+                "event_type": "mode_escalated",
+                "from_mode": plan.mode.value,
+                "to_mode": escalated.mode.value,
+            })
+            result = await _execute_plan(escalated, request, session_id, trace_id)
+            plan = escalated
 
         # 推送完成事件
         output = result.output if hasattr(result, "output") else str(result)
