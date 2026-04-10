@@ -67,7 +67,6 @@ def create_orchestrator_agent(
     agent = create_deep_agent(
         model=get_model("planning"),
         instructions=instructions,
-        output_type=OrchestratorOutput,
 
         # deepagents 能力
         include_todo=True,

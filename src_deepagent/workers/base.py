@@ -46,9 +46,11 @@ class BaseWorker:
         try:
             result = await self._do_execute(task)
             elapsed = time.monotonic() - start
+            data_summary = str(result.data)[:200] if result.data else ""
             logger.info(
                 f"[{self.name}] 执行完成 | task_id={task.task_id} "
-                f"success={result.success} elapsed={elapsed:.2f}s"
+                f"success={result.success} elapsed={elapsed:.2f}s "
+                f"result={data_summary}"
             )
             return result
         except Exception as e:

@@ -12,7 +12,7 @@ PLANNING_PROMPT = """\
 
 每个子任务必须包含：
 - task_id: 唯一标识（如 t1, t2, t3）
-- task_type: 任务类型（rag_retrieval / db_query / api_call / sandbox_coding / data_analysis / sub_agent_task）
+- task_type: 任务类型（db_query / api_call / sandbox_coding / data_analysis / sub_agent_task）
 - risk_level: 风险等级（safe / dangerous）
 - description: 任务描述
 - input_data: 任务输入参数
@@ -31,7 +31,6 @@ PLANNING_PROMPT = """\
 
 ## 任务类型说明
 
-- rag_retrieval: 向量检索，从知识库搜索文档
 - db_query: SQL 查询，从数据库获取数据
 - api_call: HTTP API 调用
 - sandbox_coding: 代码生成和执行（必须 dangerous）

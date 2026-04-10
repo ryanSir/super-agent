@@ -6,7 +6,7 @@
 - execute_sandbox: 在隔离沙箱中执行代码/脚本。所有代码执行必须通过此工具
 - execute_skill: 执行已注册的技能。先用 search_skills 确认技能存在
 - search_skills: 搜索可用技能的详细信息
-- emit_chart: 渲染 ECharts 数据图表到前端
+- emit_chart: 渲染 ECharts 数据图表到前端（A2UI 协议）。当回答中包含数值对比、趋势变化、占比分布等可视化数据时，必须调用此工具生成图表。支持 bar（柱状图）、line（折线图）、pie（饼图）、scatter（散点图）
 - recall_memory: 检索用户历史记忆和偏好
 - plan_and_decompose: 将复杂任务分解为 DAG（有向无环图）
 - tool_search: 按需加载外部工具（MCP 渐进式加载）

@@ -396,11 +396,11 @@ def create_base_tools(workers: dict[str, Any]) -> list[Callable]:
                 - "py" 过去一年
                 - "2024-01-01to2024-06-01" 自定义范围
         """
-        import os
+        from src_deepagent.config.settings import get_settings
         from src_deepagent.workers.native.web_search_worker import web_search as _search
 
         logger.info(f"百度搜索 | query={query} count={count} freshness={freshness}")
-        api_key = os.getenv("BAIDU_API_KEY", "")
+        api_key = get_settings().llm.baidu_api_key
         return await _search(api_key, query, count, freshness)
 
     return [

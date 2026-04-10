@@ -35,7 +35,7 @@ router = APIRouter(prefix="/api/agent", tags=["agent"])
 
 _WORKER_REGISTRY: dict[str, tuple[str, str]] = {
     "sandbox_worker": ("src_deepagent.workers.sandbox.sandbox_worker", "SandboxWorker"),
-    "rag_worker": ("src_deepagent.workers.native.rag_worker", "RAGWorker"),
+    # "rag_worker": ("src_deepagent.workers.native.rag_worker", "RAGWorker"),  # TODO: 缺少 embedding 环节，暂不可用
     "db_query_worker": ("src_deepagent.workers.native.db_query_worker", "DBQueryWorker"),
     "api_call_worker": ("src_deepagent.workers.native.api_call_worker", "APICallWorker"),
 }
@@ -183,13 +183,28 @@ def _needs_escalation(result: Any, plan: Any) -> bool:
     return any(signal in head for signal in _ESCALATION_SIGNALS)
 
 
+def _extract_last_text(run: Any) -> str:
+    """从 agent iter run 的消息历史中提取最后一条文本回答"""
+    try:
+        for msg in reversed(run.all_messages()):
+            if hasattr(msg, "parts"):
+                for part in reversed(msg.parts):
+                    if hasattr(part, "content") and isinstance(part.content, str) and part.content.strip():
+                        return part.content.strip()
+    except Exception:
+        pass
+    return ""
+
+
 async def _execute_plan(
     plan: Any,
     request: QueryRequest,
     session_id: str,
     trace_id: str,
 ) -> Any:
-    """执行单次编排计划，返回 agent result"""
+    """执行单次编排计划，流式推送中间事件，返回 agent result"""
+    from pydantic_ai._agent_graph import CallToolsNode, ModelRequestNode, End
+    from pydantic_ai.usage import UsageLimits
     from src_deepagent.orchestrator.reasoning_engine import ExecutionMode
 
     # 只有 AUTO 和 SUB_AGENT 模式才需要 Sub-Agent 配置
@@ -208,7 +223,48 @@ async def _execute_plan(
     )
 
     effective_query = plan.prompt_prefix + request.query
-    return await agent.run(effective_query, deps=deps)
+
+    try:
+        async with agent.iter(
+            effective_query,
+            deps=deps,
+            usage_limits=UsageLimits(request_limit=15),
+        ) as run:
+            async for node in run:
+                if isinstance(node, CallToolsNode):
+                    # 推送工具调用事件
+                    for part in node.model_response.parts:
+                        if hasattr(part, "tool_name"):
+                            await _publish(session_id, {
+                                "event_type": "tool_call",
+                                "tool_name": part.tool_name,
+                                "args": str(part.args)[:200] if hasattr(part, "args") else "",
+                            })
+                elif isinstance(node, End):
+                    break
+
+            result = run.result
+    except Exception as e:
+        # 超限或其他异常时，尝试从已有消息中提取最后一条文本回答
+        if "usage_limit" in str(e).lower() or "request_limit" in str(e).lower():
+            logger.warning(f"请求次数超限，尝试提取已有结果 | session_id={session_id}")
+            # 从 run 的消息历史中提取最后的文本内容
+            last_text = _extract_last_text(run) if 'run' in dir() else ""
+            if last_text:
+                from types import SimpleNamespace
+                result = SimpleNamespace(output=last_text)
+            else:
+                raise
+        else:
+            raise
+
+    logger.info(
+        f"结果提取 | session_id={session_id} "
+        f"output_type={type(result.output).__name__} "
+        f"output_preview={str(result.output)[:300]}"
+    )
+
+    return result
 
 
 async def _run_orchestration(
@@ -253,9 +309,15 @@ async def _run_orchestration(
 
         # 推送完成事件
         output = result.output if hasattr(result, "output") else str(result)
+        answer = output if isinstance(output, str) else output.answer if hasattr(output, "answer") else str(output)
+        logger.info(
+            f"结果提取 | session_id={session_id} "
+            f"output_type={type(output).__name__} "
+            f"answer_len={len(answer)}"
+        )
         await _publish(session_id, {
             "event_type": "session_completed",
-            "answer": output if isinstance(output, str) else output.answer if hasattr(output, "answer") else str(output),
+            "answer": answer,
         })
 
         if _session_manager:
