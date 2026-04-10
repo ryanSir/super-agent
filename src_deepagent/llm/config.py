@@ -71,6 +71,9 @@ def get_model(alias: str) -> Any:
 def configure_litellm() -> None:
     """配置 LiteLLM 全局参数（兼容保留）"""
     settings = get_settings()
+    if not settings.llm.enable_litellm:
+        logger.info("LLM 配置完成 | litellm=disabled（设置 ENABLE_LITELLM=true 启用）")
+        return
     try:
         import litellm
 

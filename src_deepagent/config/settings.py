@@ -21,6 +21,7 @@ class LLMSettings(BaseSettings):
     execution_model: str = Field(default="gpt-4o-mini", alias="EXECUTION_MODEL")
     fast_model: str = Field(default="gpt-4o-mini", alias="FAST_MODEL")
     request_timeout: int = Field(default=60, alias="LLM_REQUEST_TIMEOUT")
+    enable_litellm: bool = Field(default=False, alias="ENABLE_LITELLM")
 
     model_config = {"env_prefix": "", "extra": "ignore", "env_file": ".env"}
 
