@@ -25,7 +25,7 @@ from src_deepagent.schemas.api import QueryRequest, QueryResponse
 from src_deepagent.state.session_manager import SessionManager
 from src_deepagent.streaming.sse_endpoint import sse_event_generator
 from src_deepagent.streaming.stream_adapter import StreamAdapter
-from src_deepagent.sub_agents.factory import create_sub_agent_configs
+from src_deepagent.agents.factory import create_sub_agent_configs
 
 logger = get_logger(__name__)
 
@@ -166,8 +166,8 @@ def _needs_escalation(result: Any, plan: Any) -> bool:
         output.answer if hasattr(output, "answer") else str(output)
     )
 
-    # 空输出或过短
-    if not answer or len(answer.strip()) < 10:
+    # 空输出
+    if not answer or not answer.strip():
         return True
 
     # 只检查开头 200 字符，避免在搜索结果等长内容中误匹配
@@ -190,7 +190,15 @@ async def _execute_plan(
     trace_id: str,
 ) -> Any:
     """执行单次编排计划，返回 agent result"""
-    sub_agent_configs = create_sub_agent_configs(plan.resources.agent_tools)
+    from src_deepagent.orchestrator.reasoning_engine import ExecutionMode
+
+    # 只有 AUTO 和 SUB_AGENT 模式才需要 Sub-Agent 配置
+    # DIRECT 和 PLAN_AND_EXECUTE 模式下隐藏 task() 工具，避免误调
+    if plan.mode in (ExecutionMode.AUTO, ExecutionMode.SUB_AGENT):
+        sub_agent_configs = create_sub_agent_configs(plan.resources.agent_tools)
+    else:
+        sub_agent_configs = []
+
     agent, deps = create_orchestrator_agent(
         plan=plan,
         sub_agent_configs=sub_agent_configs,

@@ -567,17 +567,17 @@ class ReasoningEngine:
         mcp_toolsets = await self._get_mcp_toolsets()
 
         # Skill summary（内存读取）
-        from src_deepagent.skills.registry import skill_registry
+        from src_deepagent.capabilities.skills.registry import skill_registry
 
         skill_summary = skill_registry.get_skill_summary()
 
         # 桥接工具（基于 workers 创建）
-        from src_deepagent.sub_agents.bridge import create_worker_tools
+        from src_deepagent.capabilities.base_tools import create_base_tools
 
-        agent_tools = create_worker_tools(self._workers)
+        agent_tools = create_base_tools(self._workers)
 
         # MCP 延迟加载工具名称（只注入名称到 prompt，不加载完整 schema）
-        from src_deepagent.orchestrator.deferred_tools import deferred_tool_registry
+        from src_deepagent.capabilities.mcp.deferred_registry import deferred_tool_registry
 
         deferred_tool_names = deferred_tool_registry.get_tool_names()
 

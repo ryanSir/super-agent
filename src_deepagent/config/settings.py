@@ -98,7 +98,7 @@ class ReasoningSettings(BaseSettings):
     llm_classify_enabled: bool = Field(default=True, alias="REASONING_LLM_CLASSIFY_ENABLED")
 
     # 模式升级
-    escalation_enabled: bool = Field(default=True, alias="REASONING_ESCALATION_ENABLED")
+    escalation_enabled: bool = Field(default=False, alias="REASONING_ESCALATION_ENABLED")
 
     model_config = {"env_prefix": "", "extra": "ignore", "env_file": ".env"}
 

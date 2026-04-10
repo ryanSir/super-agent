@@ -17,7 +17,7 @@ from src_deepagent.core.logging import get_logger
 from src_deepagent.gateway import rest_api, websocket_api
 from src_deepagent.llm.config import configure_litellm
 from src_deepagent.monitoring.langfuse_tracer import flush as langfuse_flush
-from src_deepagent.skills.registry import skill_registry
+from src_deepagent.capabilities.skills.registry import skill_registry
 
 logger = get_logger(__name__)
 

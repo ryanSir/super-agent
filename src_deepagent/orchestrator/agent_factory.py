@@ -11,7 +11,7 @@ from typing import Any
 from src_deepagent.core.logging import get_logger
 from src_deepagent.llm.config import get_model
 from src_deepagent.orchestrator.hooks import create_hooks
-from src_deepagent.orchestrator.prompts.system import build_dynamic_instructions
+from src_deepagent.context.builder import build_dynamic_instructions
 from src_deepagent.orchestrator.reasoning_engine import ExecutionPlan
 from src_deepagent.schemas.agent import OrchestratorOutput
 
