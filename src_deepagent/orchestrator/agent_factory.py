@@ -80,6 +80,9 @@ def create_orchestrator_agent(
         web_search=False,
         web_fetch=False,
 
+        # 禁用 create_deep_agent 内置 thinking，由 agent.iter() 的 model_settings 控制
+        thinking=False,
+
         # 上下文管理
         context_manager=True,
         context_manager_max_tokens=200_000,

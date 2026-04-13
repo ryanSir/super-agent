@@ -1,0 +1,19 @@
+{
+  "version": "1.0",
+  "exported_at": "2026-04-03T11:11:23.742452Z",
+  "skill": {
+    "name": "patent-legal-status",
+    "source": "official",
+    "owner_id": "huangqing",
+    "review_status": "none",
+    "version": "1.0.0",
+    "published_version": "1.0.0"
+  },
+  "tags": [
+    "eureka-agent",
+    "eureka-agent-guest"
+  ],
+  "metadata": {},
+  "preferences": {},
+  "extensions": {}
+}

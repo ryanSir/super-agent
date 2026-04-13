@@ -36,6 +36,15 @@
   --bubble-user-bg: #3b82f6;
   --bubble-user-text: #ffffff;
 
+  /* Tool type colors */
+  --color-skill: #3b82f6;
+  --color-mcp: #8b5cf6;
+  --color-worker: #22c55e;
+  --color-sandbox: #f59e0b;
+
+  /* Animation */
+  --anim-fade-in: fadeSlideIn 0.2s ease forwards;
+
   /* Scrollbar */
   --scrollbar-thumb: #475569;
   --scrollbar-track: transparent;
@@ -277,14 +286,35 @@ body {
    ============================================================ */
 
 @keyframes msgIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+}
+
+/* Tool type badges */
+.tool-badge-skill { background: rgba(59, 130, 246, 0.12); color: var(--color-skill); }
+.tool-badge-mcp { background: rgba(139, 92, 246, 0.12); color: var(--color-mcp); }
+.tool-badge-worker { background: rgba(34, 197, 94, 0.12); color: var(--color-worker); }
+.tool-badge-sandbox { background: rgba(245, 158, 11, 0.12); color: var(--color-sandbox); }
+
+/* Response card base */
+.response-card {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  animation: var(--anim-fade-in);
 }
 
 .message-row {
@@ -556,7 +586,7 @@ body {
 .response-block {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   flex: 1;
 }
 
@@ -701,11 +731,19 @@ body {
 }
 
 .thinking-content {
-  padding: 0 14px 12px;
+  padding: 0 14px;
   font-size: 13px;
   color: var(--text-secondary);
   line-height: 1.6;
   white-space: pre-wrap;
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 0.3s ease, padding 0.2s ease;
+}
+
+.thinking-content.expanded {
+  max-height: 600px;
+  padding: 8px 14px 12px;
 }
 
 /* ============================================================
@@ -1004,15 +1042,16 @@ body {
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25), 0 2px 8px rgba(0, 0, 0, 0.15);
   z-index: 100;
   overflow: hidden;
-  max-height: 240px;
+  max-height: 280px;
   overflow-y: auto;
+  animation: fadeSlideIn 0.15s ease forwards;
 }
 
 .skill-mention-header {
-  padding: 6px 12px;
+  padding: 8px 12px 6px;
   font-size: 11px;
   font-weight: 600;
   color: var(--text-secondary);
@@ -1023,16 +1062,37 @@ body {
 
 .skill-mention-item {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 10px;
-  padding: 8px 12px;
+  padding: 9px 12px;
   cursor: pointer;
-  transition: background var(--transition-fast);
+  transition: background var(--transition-fast), border-left-color var(--transition-fast);
+  border-left: 3px solid transparent;
 }
 
-.skill-mention-item:hover,
+.skill-mention-item:hover {
+  background: rgba(99, 102, 241, 0.08);
+  border-left-color: var(--accent);
+}
+
 .skill-mention-item.selected {
-  background: var(--bg-hover, rgba(99, 102, 241, 0.1));
+  background: rgba(99, 102, 241, 0.1);
+  border-left-color: var(--accent);
+}
+
+.skill-mention-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+  width: 24px;
+  text-align: center;
+}
+
+.skill-mention-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
 
 .skill-mention-name {
@@ -1040,7 +1100,6 @@ body {
   font-weight: 600;
   color: var(--accent);
   white-space: nowrap;
-  flex-shrink: 0;
 }
 
 .skill-mention-desc {
@@ -1051,7 +1110,304 @@ body {
   white-space: nowrap;
 }
 
-/* Eureka Agent 跳转卡片 */
+/* ============================================================
+   ProcessProgress
+   ============================================================ */
+
+.process-progress {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 12px 16px;
+}
+
+.process-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.process-node-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  border: 2px solid var(--border);
+  background: var(--bg-tertiary);
+  transition: all var(--transition-base);
+}
+
+.process-node.status-running .process-node-icon {
+  border-color: var(--accent);
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.process-node.status-completed .process-node-icon {
+  border-color: var(--success);
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.process-node.status-failed .process-node-icon {
+  border-color: var(--error);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.process-node-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.process-node.status-running .process-node-label { color: var(--accent); font-weight: 600; }
+.process-node.status-completed .process-node-label { color: var(--success); }
+.process-node.status-failed .process-node-label { color: var(--error); }
+
+.process-line {
+  flex: 1;
+  height: 2px;
+  background: var(--border);
+  margin-bottom: 16px;
+  transition: background var(--transition-base);
+}
+
+.process-line.filled { background: var(--success); }
+
+/* ============================================================
+   Tool Timeline
+   ============================================================ */
+
+.tool-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.tool-timeline-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.tool-timeline-left {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  width: 20px;
+  padding-top: 9px;
+}
+
+.tool-timeline-node {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  border: 2px solid var(--border);
+  background: var(--bg-tertiary);
+  flex-shrink: 0;
+  transition: all var(--transition-base);
+}
+
+.tool-timeline-node.node-loading {
+  border-color: var(--accent);
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.tool-timeline-node.node-success {
+  border-color: var(--success);
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.tool-timeline-node.node-failed {
+  border-color: var(--error);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.tool-timeline-line {
+  width: 2px;
+  flex: 1;
+  min-height: 8px;
+  background: var(--border);
+  margin: 2px 0;
+}
+
+.tool-card {
+  flex: 1;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 8px;
+  transition: border-color var(--transition-fast);
+}
+
+.tool-card:hover { border-color: var(--accent); }
+.tool-card.tool-card-failed { border-color: rgba(239, 68, 68, 0.4); }
+
+.tool-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--transition-fast);
+}
+
+.tool-card-header:hover { background: var(--bg-tertiary); }
+
+.tool-card-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.tool-type-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tool-status-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.tool-card-chevron {
+  font-size: 11px;
+  color: var(--text-secondary);
+  transition: transform var(--transition-fast);
+}
+
+.tool-card-chevron.expanded { transform: rotate(180deg); }
+
+.tool-card-preview {
+  padding: 6px 12px 10px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  border-top: 1px solid var(--bg-tertiary);
+}
+
+.tool-card-content {
+  padding: 12px;
+  font-size: 13px;
+  line-height: 1.6;
+  border-top: 1px solid var(--bg-tertiary);
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.tool-card-content h2, .tool-card-content h3 { margin-top: 10px; margin-bottom: 5px; }
+.tool-card-content ul, .tool-card-content ol { padding-left: 18px; margin: 5px 0; }
+.tool-card-content li { margin: 3px 0; }
+.tool-card-content code { background: var(--bg-tertiary); padding: 2px 5px; border-radius: 4px; font-size: 12px; }
+.tool-card-content pre { background: var(--code-bg); color: var(--code-text); padding: 10px; border-radius: 6px; overflow-x: auto; margin: 6px 0; }
+
+.tool-loading-dots {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.tool-loading-dots span {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--text-secondary);
+  animation: dotPulse 1.2s ease-in-out infinite;
+}
+
+.tool-loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+.tool-loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes dotPulse {
+  0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1); }
+}
+
+/* ============================================================
+   SubAgentCard
+   ============================================================ */
+
+.sub-agent-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  animation: var(--anim-fade-in);
+}
+
+.sub-agent-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--transition-fast);
+}
+
+.sub-agent-header:hover { background: var(--bg-tertiary); }
+
+.sub-agent-icon { font-size: 15px; flex-shrink: 0; }
+
+.sub-agent-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.sub-agent-status-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.sub-agent-status-running { background: rgba(59, 130, 246, 0.12); color: var(--accent); }
+.sub-agent-status-completed { background: rgba(34, 197, 94, 0.12); color: var(--success); }
+.sub-agent-status-failed { background: rgba(239, 68, 68, 0.12); color: var(--error); }
+
+.sub-agent-progress {
+  padding: 6px 14px 10px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  border-top: 1px solid var(--bg-tertiary);
+}
+
+.sub-agent-tokens {
+  font-size: 11px;
+  color: var(--text-secondary);
+  padding: 4px 14px 8px;
+  opacity: 0.7;
+}
+
+.sub-agent-result {
+  padding: 10px 14px;
+  font-size: 13px;
+  line-height: 1.6;
+  border-top: 1px solid var(--bg-tertiary);
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* ============================================================
+   Eureka Agent 跳转卡片 */
 .eureka-agent-card {
   display: flex;
   align-items: flex-start;

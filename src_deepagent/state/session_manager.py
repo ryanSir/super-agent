@@ -81,6 +81,9 @@ class SessionManager:
     def _key(self, session_id: str) -> str:
         return f"session:{session_id}"
 
+    def _messages_key(self, session_id: str) -> str:
+        return f"conversation:{session_id}:messages"
+
     async def create(
         self,
         session_id: str,
@@ -136,3 +139,61 @@ class SessionManager:
             await self._redis.hset(self._key(session_id), "status", status.value)
 
         logger.info(f"会话状态更新 | session_id={session_id} status={status.value}")
+
+    async def save_messages(self, session_id: str, messages: list[Any]) -> None:
+        """保存对话消息历史到 Redis
+
+        Args:
+            session_id: 会话 ID
+            messages: pydantic_ai 消息列表
+        """
+        if not self._redis:
+            return
+
+        try:
+            from pydantic_ai.messages import ModelMessagesTypeAdapter
+            from src_deepagent.config.settings import get_settings
+
+            settings = get_settings()
+            max_turns = settings.memory.conversation_max_turns
+            ttl = settings.memory.conversation_ttl
+
+            # 裁剪：每轮 = 1 request + 1 response，保留最近 max_turns 轮
+            max_messages = max_turns * 2
+            if len(messages) > max_messages:
+                messages = messages[-max_messages:]
+
+            data = ModelMessagesTypeAdapter.dump_json(messages).decode()
+            key = self._messages_key(session_id)
+            await self._redis.set(key, data, ex=ttl)
+
+            logger.info(f"对话历史保存 | session_id={session_id} messages={len(messages)}")
+        except Exception as e:
+            logger.warning(f"对话历史保存失败 | session_id={session_id} error={e}")
+
+    async def load_messages(self, session_id: str) -> list[Any]:
+        """从 Redis 加载对话消息历史
+
+        Args:
+            session_id: 会话 ID
+
+        Returns:
+            pydantic_ai 消息列表，失败返回空列表
+        """
+        if not self._redis:
+            return []
+
+        try:
+            from pydantic_ai.messages import ModelMessagesTypeAdapter
+
+            key = self._messages_key(session_id)
+            data = await self._redis.get(key)
+            if not data:
+                return []
+
+            messages = ModelMessagesTypeAdapter.validate_json(data)
+            logger.info(f"对话历史加载 | session_id={session_id} messages={len(messages)}")
+            return list(messages)
+        except Exception as e:
+            logger.warning(f"对话历史加载失败 | session_id={session_id} error={e}")
+            return []

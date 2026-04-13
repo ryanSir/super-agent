@@ -94,10 +94,10 @@ class SandboxManager:
                         event_type = obj.get("type", "")
                     except Exception:
                         pass
-                    if event_type:
-                        logger.info(f"[Pi Agent] {sandbox_id} | event={event_type}")
-                    elif decoded:
-                        logger.info(f"[Pi Agent] {sandbox_id} | {decoded[:200]}")
+                    # if event_type:
+                    #     logger.info(f"[Pi Agent] {sandbox_id} | event={event_type}")
+                    # elif decoded:
+                    #     logger.info(f"[Pi Agent] {sandbox_id} | {decoded[:200]}")
 
             async def _read_stderr():
                 assert proc.stderr is not None

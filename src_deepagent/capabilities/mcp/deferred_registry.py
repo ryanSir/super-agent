@@ -107,7 +107,10 @@ class DeferredToolRegistry:
 
         # 模式2: 名称包含
         if query.startswith("+"):
-            keyword = query[1:].split()[0].lower()
+            parts = query[1:].split()
+            if not parts:
+                return []
+            keyword = parts[0].lower()
             return [
                 t for t in self._tools.values()
                 if keyword in t.name.lower()

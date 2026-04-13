@@ -8,17 +8,25 @@ from __future__ import annotations
 
 import json
 import uuid
+from contextvars import ContextVar
 from typing import Any, Callable
 
 from pydantic_ai import RunContext
 
-from src_deepagent.core.exceptions import BridgeError
 from src_deepagent.core.logging import get_logger
 from src_deepagent.memory.retriever import MemoryRetriever
-from src_deepagent.schemas.agent import RiskLevel, TaskNode, TaskStatus, TaskType
+from src_deepagent.schemas.agent import RiskLevel, TaskNode, TaskType
 from src_deepagent.capabilities.skills.registry import skill_registry
 
 logger = get_logger(__name__)
+
+# 每个 asyncio task 独立的事件发布回调，避免并发请求互相覆盖
+_publish_fn_var: ContextVar[Callable | None] = ContextVar("publish_fn", default=None)
+
+
+def set_publish_fn(fn: Callable) -> None:
+    """注入事件发布函数（由 rest_api 在编排时调用，每个请求 context 独立）"""
+    _publish_fn_var.set(fn)
 
 
 def create_base_tools(workers: dict[str, Any]) -> list[Callable]:
@@ -109,7 +117,11 @@ def create_base_tools(workers: dict[str, Any]) -> list[Callable]:
         context_files: dict[str, str] | None = None,
         timeout: int = 120,
     ) -> dict[str, Any]:
-        """调用 SandboxWorker 在 E2B 隔离环境中执行任务
+        """调用 SandboxWorker 在隔离环境中执行自定义代码片段
+
+        ⚠️ 注意：此工具用于执行临时的自定义代码。
+        如需调用已注册的 Skill，必须使用 execute_skill，不要用此工具替代——
+        Skill 需要注入专属文件，直接用此工具会因缺少文件而失败。
 
         Args:
             instruction: 执行指令
@@ -138,10 +150,14 @@ def create_base_tools(workers: dict[str, Any]) -> list[Callable]:
         skill_name: str,
         params: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """执行已注册的 Skill
+        """执行已注册的 Skill（调用 Skill 的唯一正确方式）
+
+        ⚠️ 注意：这是调用已注册 Skill 的唯一正确方式。
+        此工具会自动注入 Skill 所需的专属脚本文件；
+        若改用 execute_sandbox 直接执行，会因缺少这些文件而失败。
 
         Args:
-            skill_name: 技能名称
+            skill_name: 技能名称（从 search_skills 结果中获取）
             params: 技能参数
         """
         skill = skill_registry.get(skill_name)
@@ -193,11 +209,15 @@ def create_base_tools(workers: dict[str, Any]) -> list[Callable]:
         main_script = scripts[0] if scripts else "main.py"
         params_json = json.dumps(params or {}, ensure_ascii=False)
 
-        # 构建 instruction：让 Pi Agent 理解任务并执行脚本
+        # 构建执行指令：让 Pi Agent 根据 SKILL.md 理解参数并正确执行
         instruction = (
             f"请执行技能 '{skill_name}'。\n"
-            f"运行命令: python3 scripts/{main_script} '{params_json}'\n"
+            f"主脚本: scripts/{main_script}\n"
             f"技能描述: {skill.metadata.description}\n"
+            f"用户传入参数: {params_json}\n\n"
+            f"重要：请先阅读 SKILL.md 了解脚本的正确用法和参数格式，"
+            f"然后根据文档说明构建正确的命令行来执行脚本。"
+            f"不要直接把 JSON 作为参数传给脚本。\n"
             f"如果脚本需要依赖，先用 pip install 安装。"
         )
 
@@ -221,10 +241,12 @@ def create_base_tools(workers: dict[str, Any]) -> list[Callable]:
         return result.model_dump()
 
     async def search_skills(ctx: RunContext[Any], query: str) -> dict[str, Any]:
-        """搜索可用 Skills
+        """搜索可用 Skills，用于在创建前检查是否已存在同名技能。
+
+        注意：调用 create_skill 成功后无需再次调用此工具验证，create_skill 返回值已包含完整信息。
 
         Args:
-            query: 搜索关键词
+            query: 搜索关键词（支持英文名称或中文描述）
         """
         from src_deepagent.capabilities.skills.registry import skill_registry
 
@@ -236,7 +258,7 @@ def create_base_tools(workers: dict[str, Any]) -> list[Callable]:
                     "name": s.metadata.name,
                     "description": s.metadata.description,
                     "scripts": s.scripts,
-                    "doc_content": s.doc_content[:2000],
+                    "doc_content": s.doc_content,
                 }
                 for s in results
             ],
@@ -258,21 +280,38 @@ def create_base_tools(workers: dict[str, Any]) -> list[Callable]:
             x_axis: X 轴数据
             series_data: 系列数据
         """
-        chart_config = {
-            "title": {"text": title},
-            "xAxis": {"data": x_axis or []},
-            "series": series_data or [],
-            "chart_type": chart_type,
+        widget_id = f"chart-{uuid.uuid4().hex[:8]}"
+        props = {
+            "title": title,
+            "chartType": chart_type,
+            "xAxis": x_axis or [],
+            "seriesData": series_data or [],
         }
 
-        # 通过 A2UI 协议推送到前端
-        frame = {
-            "component": "DataChart",
-            "props": {"option": chart_config, "style": {"height": "400px"}},
-        }
+        logger.info(f"图表渲染 | title={title} type={chart_type} widget_id={widget_id}")
 
-        logger.info(f"图表渲染 | title={title} type={chart_type}")
-        return {"success": True, "data": frame}
+        # 直接推送 render_widget 事件到 SSE
+        _publish_fn = _publish_fn_var.get()
+        if _publish_fn:
+            try:
+                import asyncio
+                asyncio.ensure_future(_publish_fn({
+                    "event_type": "render_widget",
+                    "widget_id": widget_id,
+                    "ui_component": "DataChart",
+                    "props": props,
+                }))
+            except Exception as e:
+                logger.warning(f"render_widget 推送失败 | error={e}")
+
+        return {
+            "success": True,
+            "data": {
+                "widget_id": widget_id,
+                "ui_component": "DataChart",
+                "props": props,
+            },
+        }
 
     async def recall_memory(ctx: RunContext[Any], user_id: str) -> dict[str, Any]:
         """从 Redis 检索用户记忆
@@ -378,6 +417,27 @@ def create_base_tools(workers: dict[str, Any]) -> list[Callable]:
             "data": {"tools": tools_data, "count": len(results)},
         }
 
+    async def call_mcp_tool(
+        ctx: RunContext[Any],
+        tool_name: str,
+        arguments: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """调用 MCP 外部工具
+
+        先通过 tool_search 搜索并确认工具存在，再使用此函数执行。
+
+        Args:
+            tool_name: 工具名称（从 tool_search 结果中获取）
+            arguments: 工具参数（JSON 对象，与 tool_search 返回的 schema 对应）
+        """
+        from src_deepagent.capabilities.mcp.client_manager import mcp_client_manager
+
+        if not mcp_client_manager.connected_endpoints:
+            return {"success": False, "error": "MCP 未连接，无可用端点"}
+
+        logger.info(f"执行 MCP 工具 | tool={tool_name} args={json.dumps(arguments or {}, ensure_ascii=False)[:200]}")
+        return await mcp_client_manager.call_tool(tool_name, arguments)
+
     async def baidu_search(
         ctx: RunContext[Any],
         query: str,
@@ -403,16 +463,109 @@ def create_base_tools(workers: dict[str, Any]) -> list[Callable]:
         api_key = get_settings().llm.baidu_api_key
         return await _search(api_key, query, count, freshness)
 
-    return [
+    async def create_skill(
+        ctx: RunContext[Any],
+        name: str,
+        description: str,
+        script_name: str = "main.py",
+        script_content: str | None = None,
+        doc_content: str | None = None,
+        overwrite: bool = False,
+    ) -> dict[str, Any]:
+        """创建新技能包，生成 SKILL.md 和脚本模板并注册到技能库。
+
+        可先调用 search_skills 确认无同名技能，再调用此工具创建。
+        如果技能已存在且需要覆盖，传 overwrite=True。
+
+        Args:
+            name: 技能名称（小写字母 + 连字符，如 my-skill）
+            description: 技能一句话描述
+            script_name: 主脚本文件名（默认 main.py）
+            script_content: 脚本内容（可选，不提供则生成模板）
+            doc_content: 附加文档内容（追加到 SKILL.md，可选）
+            overwrite: 是否覆盖已存在的技能目录（默认 False）
+        """
+        from src_deepagent.capabilities.skill_creator import (
+            SkillCreateRequest,
+            create_skill as _create_skill,
+        )
+
+        request = SkillCreateRequest(
+            name=name,
+            description=description,
+            script_name=script_name,
+            script_content=script_content,
+            doc_content=doc_content,
+            overwrite=overwrite,
+        )
+        return _create_skill(request)
+
+    tools = [
         execute_rag_search,
         execute_db_query,
         execute_api_call,
         execute_sandbox,
         execute_skill,
         search_skills,
+        create_skill,
         emit_chart,
         recall_memory,
         plan_and_decompose,
         tool_search,
+        call_mcp_tool,
         baidu_search,
     ]
+
+    return [_wrap_with_tool_result(fn) for fn in tools]
+
+
+def _wrap_with_tool_result(fn: Callable) -> Callable:
+    """包装工具函数，执行完自动推送 tool_result 事件（使用 ContextVar，并发安全）"""
+    import functools
+    import asyncio
+
+    @functools.wraps(fn)
+    async def wrapper(*args, **kwargs):
+        result = await fn(*args, **kwargs)
+
+        publish_fn = _publish_fn_var.get()
+        if publish_fn:
+            try:
+                tool_name = fn.__name__
+                if isinstance(result, dict):
+                    status = "success" if result.get("success", True) else "failed"
+                    content = str(result.get("data", result.get("error", "")))
+                else:
+                    status = "success"
+                    content = str(result)
+                asyncio.ensure_future(publish_fn({
+                    "event_type": "tool_result",
+                    "tool_name": tool_name,
+                    "tool_type": _infer_tool_type_local(tool_name),
+                    "status": status,
+                    "content": content,
+                }))
+            except Exception:
+                pass
+
+        return result
+
+    return wrapper
+
+
+def _infer_tool_type_local(tool_name: str) -> str:
+    """根据工具名推断工具类型"""
+    _NATIVE = {
+        "execute_rag_search", "execute_db_query", "execute_api_call",
+        "emit_chart", "recall_memory", "plan_and_decompose",
+        "tool_search", "search_skills", "create_skill", "baidu_search",
+    }
+    if tool_name in _NATIVE:
+        return "native_worker"
+    if tool_name in {"execute_sandbox"}:
+        return "sandbox"
+    if tool_name == "execute_skill":
+        return "skill"
+    if tool_name == "call_mcp_tool":
+        return "mcp"
+    return "tool"

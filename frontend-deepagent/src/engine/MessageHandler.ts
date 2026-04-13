@@ -26,6 +26,7 @@ export type ToolResultState = {
   id: string
   toolType: 'skill' | 'mcp' | 'native_worker' | 'sandbox'
   toolName: string
+  rawToolName: string
   content: string
   status: 'success' | 'failed'
   loading?: boolean
@@ -48,6 +49,12 @@ export type SubAgentState = {
   error?: string
 }
 
+// 执行阶段
+export type ProcessPhase = {
+  phase: string
+  status: 'pending' | 'running' | 'completed' | 'failed'
+}
+
 // 当前正在构建的回答
 export type ResponseState = {
   thinking: string
@@ -55,6 +62,7 @@ export type ResponseState = {
   toolResults: ToolResultState[]
   widgets: WidgetState[]
   subAgents: SubAgentState[]
+  processPhases: ProcessPhase[]
   answer: string
   answerComplete: boolean
 }
@@ -81,6 +89,7 @@ function emptyResponse(): ResponseState {
     toolResults: [],
     widgets: [],
     subAgents: [],
+    processPhases: [],
     answer: '',
     answerComplete: false,
   }
@@ -119,10 +128,14 @@ export function handleEvent(state: UIState, event: A2UIEvent): UIState {
         // 如果 answer 为空但后端返回了 answer，补充
         const cr = state.currentResponse
         const finalAnswer = cr.answer || event.answer || ''
+        // 清理仍在 loading 的 toolResults
+        const finalToolResults = cr.toolResults.map((tr) =>
+          tr.loading ? { ...tr, loading: false, status: 'success' as const } : tr
+        )
         newMessages.push({
           id: `msg-${Date.now()}`,
           type: 'assistant',
-          response: { ...cr, answer: finalAnswer, answerComplete: true },
+          response: { ...cr, toolResults: finalToolResults, answer: finalAnswer, answerComplete: true },
           timestamp: new Date().toISOString(),
         })
       }
@@ -186,29 +199,18 @@ export function handleEvent(state: UIState, event: A2UIEvent): UIState {
 
     case 'tool_call': {
       const cr = state.currentResponse || emptyResponse()
-      const stepId = `mcp-${event.tool_name}-${Date.now()}`
-      const newSteps: StepState[] =
-        event.tool_type === 'mcp'
-          ? [
-              ...cr.steps,
-              {
-                stepId,
-                title: `调用 ${event.tool_name}`,
-                status: 'running' as const,
-              },
-            ]
-          : cr.steps
+      const displayName = event.display_name || event.tool_name || 'unknown'
       return {
         ...state,
         currentResponse: {
           ...cr,
-          steps: newSteps,
           toolResults: [
             ...cr.toolResults,
             {
               id: `tr-loading-${event.tool_name}-${Date.now()}`,
               toolType: (event.tool_type || 'mcp') as ToolResultState['toolType'],
-              toolName: event.tool_name || 'unknown',
+              toolName: displayName,
+              rawToolName: event.tool_name || displayName,
               content: '',
               status: 'success' as const,
               loading: true,
@@ -220,13 +222,15 @@ export function handleEvent(state: UIState, event: A2UIEvent): UIState {
 
     case 'tool_result': {
       const cr = state.currentResponse || emptyResponse()
+      const resultToolName = event.tool_name || 'unknown'
       const loadingIdx = cr.toolResults.findLastIndex(
-        (tr) => tr.loading && tr.toolName === (event.tool_name || 'unknown')
+        (tr) => tr.loading && (tr.rawToolName === resultToolName || tr.toolName === resultToolName)
       )
       const newResult: ToolResultState = {
         id: loadingIdx >= 0 ? cr.toolResults[loadingIdx].id : `tr-${Date.now()}-${cr.toolResults.length}`,
         toolType: event.tool_type || 'skill',
-        toolName: event.tool_name || 'unknown',
+        toolName: loadingIdx >= 0 ? cr.toolResults[loadingIdx].toolName : resultToolName,
+        rawToolName: resultToolName,
         content: event.content || '',
         status: event.status || 'success',
         loading: false,
@@ -281,6 +285,24 @@ export function handleEvent(state: UIState, event: A2UIEvent): UIState {
           answer: cr.answer + (event.delta || ''),
           answerComplete: event.is_final || false,
         },
+      }
+    }
+
+    case 'process_update': {
+      const cr = state.currentResponse || emptyResponse()
+      const phaseStatus: ProcessPhase['status'] =
+        event.status === 'completed' ? 'completed' : event.status === 'failed' ? 'failed' : 'running'
+      const existingIdx = cr.processPhases.findIndex((p) => p.phase === event.phase)
+      let newPhases: ProcessPhase[]
+      if (existingIdx >= 0) {
+        newPhases = [...cr.processPhases]
+        newPhases[existingIdx] = { phase: event.phase, status: phaseStatus }
+      } else {
+        newPhases = [...cr.processPhases, { phase: event.phase, status: phaseStatus }]
+      }
+      return {
+        ...state,
+        currentResponse: { ...cr, processPhases: newPhases },
       }
     }
 

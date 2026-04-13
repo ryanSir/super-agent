@@ -608,8 +608,30 @@ class ReasoningEngine:
         return self._resources_cache
 
     async def _get_mcp_toolsets(self) -> list[Any]:
-        """获取 MCP toolsets（降级处理）"""
-        # TODO: 接入 MCP 连接管理
+        """获取 MCP toolsets（多端点，降级处理）"""
+        from src_deepagent.config.settings import get_settings
+        from src_deepagent.capabilities.mcp.client_manager import (
+            mcp_client_manager,
+            parse_mcp_servers,
+        )
+
+        settings = get_settings()
+        endpoints = parse_mcp_servers(
+            servers_json=settings.mcp.servers_json,
+            fallback_url=settings.mcp.server_url,
+        )
+
+        if not endpoints:
+            return []
+
+        try:
+            tool_count = await mcp_client_manager.connect(endpoints)
+            logger.info(f"[ReasoningEngine] MCP 连接完成 | tools={tool_count}")
+        except Exception as e:
+            logger.error(f"[ReasoningEngine] MCP 连接异常 | error={e}")
+            return []
+
+        # MCP 工具通过 call_mcp_tool 桥接工具执行，不需要注入 pydantic_deep toolsets
         return []
 
     # ── 执行计划装配 ──────────────────��───────────────────

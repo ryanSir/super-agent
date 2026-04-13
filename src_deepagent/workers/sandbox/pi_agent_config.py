@@ -29,6 +29,7 @@ export NVM_DIR="$HOME/.nvm"
 
 export OPENAI_API_KEY="{llm_token}"
 export OPENAI_BASE_URL="{llm_base_url}"
+{extra_env_exports}
 
 cd {work_dir}
 
@@ -67,10 +68,20 @@ def build_startup_command(
     Returns:
         完整的 bash 启动脚本内容
     """
-    settings = get_settings().e2b
-    pi_provider = settings.sandbox_pi_provider
-    pi_model = model or settings.sandbox_pi_model
+    settings = get_settings()
+    e2b_settings = settings.e2b
+    pi_provider = e2b_settings.sandbox_pi_provider
+    pi_model = model or e2b_settings.sandbox_pi_model
     tool_list = ",".join(tools) if tools else ATOMIC_TOOLS
+
+    # 注入业务 key 到沙箱环境变量
+    extra_keys = {
+        "BAIDU_API_KEY": settings.llm.baidu_api_key,
+        "PATSNAP_API_BASE": "http://qa-s-analytics-hiro.patsnap.info",
+    }
+    extra_env_exports = "\n".join(
+        f'export {k}="{v}"' for k, v in extra_keys.items() if v
+    )
 
     return PI_AGENT_STARTUP_SCRIPT.format(
         work_dir=work_dir,
@@ -81,6 +92,7 @@ def build_startup_command(
         provider=pi_provider,
         model=pi_model,
         tools=tool_list,
+        extra_env_exports=extra_env_exports,
     )
 
 

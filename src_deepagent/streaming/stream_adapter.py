@@ -37,6 +37,13 @@ class StreamAdapter:
         settings = get_settings()
         key = self._stream_key(session_id)
 
+        # 自动注入公共字段
+        if "session_id" not in event:
+            event["session_id"] = session_id
+        if "timestamp" not in event:
+            from datetime import datetime
+            event["timestamp"] = datetime.now().isoformat()
+
         payload = {
             "data": json.dumps(event, ensure_ascii=False, default=str),
             "timestamp": str(time.time()),

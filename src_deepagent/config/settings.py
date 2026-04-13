@@ -86,6 +86,18 @@ class MemorySettings(BaseSettings):
     retrieval_timeout_ms: int = Field(default=200, alias="MEMORY_RETRIEVAL_TIMEOUT_MS")
     max_facts: int = Field(default=100, alias="MEMORY_MAX_FACTS")
     lock_ttl: int = Field(default=30, alias="MEMORY_LOCK_TTL")
+    conversation_max_turns: int = Field(default=20, alias="MEMORY_CONVERSATION_MAX_TURNS")
+    conversation_ttl: int = Field(default=3600, alias="MEMORY_CONVERSATION_TTL")
+
+    model_config = {"env_prefix": "", "extra": "ignore", "env_file": ".env"}
+
+
+class MCPSettings(BaseSettings):
+    """MCP 工具服务配置"""
+
+    servers_json: str = Field(default="", alias="MCP_SERVERS")
+    server_url: str = Field(default="", alias="MCP_SERVER_URL")
+    connect_timeout: float = Field(default=10.0, alias="MCP_CONNECT_TIMEOUT")
 
     model_config = {"env_prefix": "", "extra": "ignore", "env_file": ".env"}
 
@@ -122,6 +134,7 @@ class AppSettings(BaseSettings):
     langfuse: LangfuseSettings = Field(default_factory=LangfuseSettings)
     milvus: MilvusSettings = Field(default_factory=MilvusSettings)
     memory: MemorySettings = Field(default_factory=MemorySettings)
+    mcp: MCPSettings = Field(default_factory=MCPSettings)
     reasoning: ReasoningSettings = Field(default_factory=ReasoningSettings)
 
     model_config = {"env_prefix": "", "extra": "ignore", "env_file": ".env"}

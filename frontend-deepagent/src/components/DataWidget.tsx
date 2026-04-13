@@ -47,18 +47,31 @@ function DataWidget({
           ? [
               {
                 type: 'pie',
-                data: (xAxis || []).map((name, i) => {
-                  let value = 0
-                  if (Array.isArray(seriesData)) {
-                    const first = seriesData[0]
-                    if (typeof first === 'object' && first !== null && Array.isArray((first as any).data)) {
-                      value = (first as any).data[i] ?? 0
-                    } else {
-                      value = (seriesData[i] as number) ?? 0
+                data: (() => {
+                  // 优先：seriesData[0].data 已经是 [{name, value}] 格式（后端直传）
+                  if (Array.isArray(seriesData) && seriesData.length > 0) {
+                    const first = seriesData[0] as any
+                    if (typeof first === 'object' && first !== null && Array.isArray(first.data)) {
+                      const items = first.data
+                      if (items.length > 0 && typeof items[0] === 'object' && 'name' in items[0] && 'value' in items[0]) {
+                        return items
+                      }
                     }
                   }
-                  return { name, value }
-                }),
+                  // 兜底：从 xAxis + seriesData 组合
+                  return (xAxis || []).map((name, i) => {
+                    let value = 0
+                    if (Array.isArray(seriesData)) {
+                      const first = seriesData[0]
+                      if (typeof first === 'object' && first !== null && Array.isArray((first as any).data)) {
+                        value = (first as any).data[i] ?? 0
+                      } else {
+                        value = (seriesData[i] as number) ?? 0
+                      }
+                    }
+                    return { name, value }
+                  })
+                })(),
               },
             ]
           : series,

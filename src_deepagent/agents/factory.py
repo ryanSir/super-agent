@@ -62,6 +62,8 @@ def _create_builtin_configs(tool_map: dict[str, Callable]) -> list[dict[str, Any
             "include_filesystem": False,
             "include_subagents": False,
             "include_skills": False,
+            "web_search": False,
+            "web_fetch": False,
             "context_manager": True,
             "context_manager_max_tokens": 100_000,
             "cost_tracking": True,
@@ -70,6 +72,7 @@ def _create_builtin_configs(tool_map: dict[str, Callable]) -> list[dict[str, Any
                 "execute_api_call",
                 "execute_skill",
                 "search_skills",
+                "create_skill",
                 "execute_sandbox",
             ]),
         },
@@ -82,6 +85,8 @@ def _create_builtin_configs(tool_map: dict[str, Callable]) -> list[dict[str, Any
             "include_filesystem": False,
             "include_subagents": False,
             "include_skills": False,
+            "web_search": False,
+            "web_fetch": False,
             "context_manager": True,
             "context_manager_max_tokens": 100_000,
             "cost_tracking": True,
@@ -101,11 +106,14 @@ def _create_builtin_configs(tool_map: dict[str, Callable]) -> list[dict[str, Any
             "include_filesystem": True,
             "include_subagents": False,
             "include_skills": False,
+            "web_search": False,
+            "web_fetch": False,
             "context_manager": True,
             "context_manager_max_tokens": 100_000,
             "cost_tracking": True,
             "tools": _pick_tools(tool_map, [
                 "execute_skill",
+                "create_skill",
                 "execute_sandbox",
                 "emit_chart",
             ]),
@@ -127,7 +135,6 @@ def _load_custom_configs(
     except Exception as e:
         logger.warning(f"自定义 Agent 加载跳过 | error={e}")
         return []
-    return configs
 
 
 def _pick_tools(

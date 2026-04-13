@@ -23,8 +23,8 @@ const STORAGE_THEME = 'super-agent-theme'
 // 快捷测试问题
 const QUICK_QUESTIONS = [
   { label: '🔍 搜索测试', query: '帮我搜索一下 2026 年大语言模型的最新进展' },
-  { label: '📄 论文检索', query: '检索关于 RAG 检索增强生成的相关论文' },
-  { label: '📊 数据分析', query: '分析最近一个月的用户活跃数据，生成可视化图表' },
+  { label: '📄 专利查询', query: '帮我查一下 US10987654B2 在美国和欧洲的当前法律状态、维持/续费情况以及预计到期时间' },
+  { label: '📊 数据分析', query: '查询苏州最近一周的天气情况，并生成精美的温度折线趋势图' },
   { label: '💻 代码生成', query: '用 Python 写一个 hello world，并打印出来' },
   { label: '📑 PPT 生成', query: '帮我生成一份关于人工智能发展趋势的 PPT' },
   { label: '🔗 多步任务', query: '先搜索 Transformer 架构的最新论文，然后总结核心观点，最后生成一份简报' },
@@ -76,7 +76,7 @@ function App() {
   // 拉取 skill 列表
   useEffect(() => {
     const isDev = import.meta.env.DEV
-    const host = isDev ? 'http://localhost:9000' : ''
+    const host = isDev ? 'http://localhost:9001' : ''
     fetch(`${host}/api/agent/skills`)
       .then((r) => r.json())
       .then((data) => {

@@ -69,16 +69,23 @@ class SkillRegistry:
         return list(self._skills.values())
 
     def search_skills(self, query: str) -> list[SkillInfo]:
-        """按关键词搜索技能（名称和描述）"""
+        """按关键词搜索技能（名称和描述），支持多词分词匹配"""
         self._ensure_scanned()
-        query_lower = query.lower()
-        return [
-            info
-            for info in self._skills.values()
-            if query_lower in info.metadata.name.lower()
-            or query_lower in info.metadata.description.lower()
-            or query_lower in info.doc_content.lower()
-        ]
+        # 按空格和连字符分词，任意一个 token 命中即返回
+        tokens = [t.lower() for t in re.split(r"[\s\-_]+", query) if t]
+        if not tokens:
+            return list(self._skills.values())
+
+        results = []
+        for info in self._skills.values():
+            haystack = (
+                info.metadata.name.lower() + " "
+                + info.metadata.description.lower() + " "
+                + info.doc_content.lower()
+            )
+            if any(token in haystack for token in tokens):
+                results.append(info)
+        return results
 
     def get_skill_summary(self) -> str:
         """生成紧凑的技能摘要（注入 system prompt）"""
@@ -91,6 +98,11 @@ class SkillRegistry:
             scripts = ", ".join(info.scripts) if info.scripts else "无脚本"
             lines.append(f"- {info.metadata.name}: {info.metadata.description} [{scripts}]")
         return "\n".join(lines)
+
+    def register(self, info: SkillInfo) -> None:
+        """手动注册技能（动态创建后立即生效）"""
+        self._skills[info.metadata.name] = info
+        logger.info(f"技能手动注册 | name={info.metadata.name}")
 
     def _ensure_scanned(self) -> None:
         if not self._scanned:
@@ -129,19 +141,25 @@ class SkillRegistry:
             return None
 
     def _parse_frontmatter(self, content: str, skill_dir: Path) -> SkillMetadata:
-        """解析 YAML frontmatter"""
+        """解析 YAML frontmatter，支持多行折叠标量（>-、|）"""
         match = _FRONTMATTER_RE.match(content)
         name = skill_dir.name
         description = ""
 
         if match:
-            fm_text = match.group(1)
-            for line in fm_text.splitlines():
-                line = line.strip()
-                if line.startswith("name:"):
-                    name = line.split(":", 1)[1].strip().strip("\"'")
-                elif line.startswith("description:"):
-                    description = line.split(":", 1)[1].strip().strip("\"'")
+            try:
+                import yaml
+                fm = yaml.safe_load(match.group(1)) or {}
+                name = str(fm.get("name", skill_dir.name)).strip()
+                description = str(fm.get("description", "")).strip()
+            except Exception:
+                # fallback：简单行匹配
+                for line in match.group(1).splitlines():
+                    line = line.strip()
+                    if line.startswith("name:"):
+                        name = line.split(":", 1)[1].strip().strip("\"'")
+                    elif line.startswith("description:"):
+                        description = line.split(":", 1)[1].strip().strip("\"'")
 
         return SkillMetadata(name=name, description=description, path=str(skill_dir))
 
