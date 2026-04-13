@@ -318,7 +318,7 @@ src_deepagent/
 ├── orchestrator/                        # 编排层
 │   ├── reasoning_engine.py              # 推理引擎（意图+复杂度+模式路由）
 │   ├── agent_factory.py                 # 主 Agent 工厂
-│   ├── hooks.py                         # 事件钩子（推送/循环检测）
+│   ├── hooks.py                         # 生命周期 Hooks（基于 pydantic-deep 框架）
 │   └── planning.py                      # DAG 规划 prompt
 │
 ├── agents/                              # Agent 定义
@@ -566,7 +566,8 @@ tools: [execute_db_query, execute_sandbox]
 4. create_orchestrator_agent(plan, sub_agent_configs)
    → build_dynamic_instructions(execution_mode, runtime_context, ...)
    → 从 templates/ 加载对应模式的提示词模板
-   → create_deep_agent() 创建主 Agent
+   → create_hooks(publish_fn) 创建生命周期 Hooks
+   → create_deep_agent(hooks=hooks) 创建主 Agent
    ↓
 5. agent.run(effective_query, deps=deps)
    ├─ DIRECT: 主 Agent 直接回答或调桥接工具

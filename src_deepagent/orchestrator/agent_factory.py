@@ -60,13 +60,14 @@ def create_orchestrator_agent(
         execution_mode=plan.mode.value,
     )
 
-    # 构建 Hooks（TODO: 适配 deepagents Hook 数据类格式）
-    # hooks = create_hooks(publish_fn=publish_fn)
+    # 构建 Hooks（pydantic-deep 框架格式）
+    hooks = create_hooks(publish_fn=publish_fn)
 
     # 创建主 Agent
     agent = create_deep_agent(
         model=get_model("planning"),
         instructions=instructions,
+        hooks=hooks,
 
         # deepagents 能力
         include_todo=True,
