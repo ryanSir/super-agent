@@ -361,7 +361,7 @@ async def _execute_plan(
         sub_agent_configs=sub_agent_configs,
         session_id=session_id,
         trace_id=trace_id,
-        publish_fn=_publish,
+        publish_fn=lambda event: _publish(session_id, {**event, "session_id": session_id, "trace_id": trace_id}),
     )
 
     effective_query = plan.prompt_prefix + request.query

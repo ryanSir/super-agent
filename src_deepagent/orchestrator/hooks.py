@@ -30,40 +30,16 @@ def create_event_push_hooks(publish_fn: Callable | None = None) -> list[Hook]:
 
     async def on_tool_call(inp: HookInput) -> HookResult:
         logger.info(f">>>>>> HOOK FIRED: PRE_TOOL_USE [EventPush] | tool={inp.tool_name} <<<<<<")
-        if publish_fn:
-            await publish_fn({
-                "event_type": "tool_call",
-                "tool_name": inp.tool_name,
-                "tool_args_preview": str(inp.tool_input)[:200],
-                "timestamp": time.time(),
-                "source": "hook",
-            })
+        # NOTE: 暂不推送事件，避免与 rest_api._execute_plan() 中的推送重复
+        # 后续清理 rest_api 冗余推送后再启用
         return HookResult(allow=True)
 
     async def on_tool_result(inp: HookInput) -> HookResult:
         logger.info(f">>>>>> HOOK FIRED: POST_TOOL_USE [EventPush] | tool={inp.tool_name} <<<<<<")
-        if publish_fn:
-            await publish_fn({
-                "event_type": "tool_result",
-                "tool_name": inp.tool_name,
-                "status": "success",
-                "result_preview": str(inp.tool_result)[:500] if inp.tool_result else "",
-                "timestamp": time.time(),
-                "source": "hook",
-            })
         return HookResult()
 
     async def on_tool_failure(inp: HookInput) -> HookResult:
         logger.info(f">>>>>> HOOK FIRED: POST_TOOL_USE_FAILURE [EventPush] | tool={inp.tool_name} <<<<<<")
-        if publish_fn:
-            await publish_fn({
-                "event_type": "tool_result",
-                "tool_name": inp.tool_name,
-                "status": "error",
-                "error": str(inp.tool_error)[:500] if inp.tool_error else "",
-                "timestamp": time.time(),
-                "source": "hook",
-            })
         return HookResult()
 
     return [
