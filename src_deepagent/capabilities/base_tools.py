@@ -349,7 +349,7 @@ def create_base_tools(workers: dict[str, Any]) -> list[Callable]:
             from pydantic_ai import Agent
 
             planner = Agent(
-                model=get_model("planning"),
+                model=get_model("orchestrator"),
                 output_type=list[dict[str, Any]],
                 instructions=PLANNING_PROMPT,
                 name="Planner",

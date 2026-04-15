@@ -55,7 +55,7 @@ def create_orchestrator_agent(
     instructions = build_dynamic_instructions(
         skill_summary=plan.resources.prompt_ctx.skill_summary,
         sub_agent_roles=role_descriptions,
-        deferred_tool_names=plan.resources.prompt_ctx.deferred_tool_names,
+        deferred_tool_names=plan.resources.prompt_ctx.deferred_tool_summaries,
         max_concurrent_subagents=settings.max_concurrent_subagents,
         execution_mode=plan.mode.value,
     )
@@ -63,9 +63,12 @@ def create_orchestrator_agent(
     # 构建 Hooks（pydantic-deep 框架格式）
     hooks = create_hooks(publish_fn=publish_fn)
 
+    # DIRECT 模式用 fast 模型（速度快、成本低），复杂模式用 planning 模型
+    model_alias = "subagent" if plan.mode.value == "direct" else "orchestrator"
+
     # 创建主 Agent
     agent = create_deep_agent(
-        model=get_model("planning"),
+        model=get_model(model_alias),
         instructions=instructions,
         hooks=hooks,
 
@@ -97,9 +100,6 @@ def create_orchestrator_agent(
         # Sub-Agent 配置
         subagents=sub_agent_configs,
 
-        # MCP（已获取）
-        toolsets=plan.resources.infra.mcp_toolsets or [],
-
         name="Orchestrator",
     )
 
@@ -125,7 +125,7 @@ def _create_fallback_agent(
     from pydantic_ai import Agent
 
     agent = Agent(
-        model=get_model("planning"),
+        model=get_model("orchestrator"),
         output_type=OrchestratorOutput,
         instructions="你是一个智能编排助手。pydantic-deep 未安装，功能受限。",
         name="Orchestrator-Fallback",

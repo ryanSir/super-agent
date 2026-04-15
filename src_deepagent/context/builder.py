@@ -54,7 +54,7 @@ def build_dynamic_instructions(
     skill_summary: str = "",
     memory_text: str = "",
     sub_agent_roles: list[dict[str, str]] | None = None,
-    deferred_tool_names: list[str] | None = None,
+    deferred_tool_names: list[dict[str, str]] | None = None,
     max_concurrent_subagents: int = 3,
     execution_mode: str = "auto",
     runtime_context: dict[str, str] | None = None,
@@ -91,8 +91,9 @@ def build_dynamic_instructions(
             user_context=runtime_context.get("user_context", ""),
         ))
 
-    # 3. 思考策略
-    sections.append(_load_template("thinking_style"))
+    # 3. 思考策略（DIRECT 模式不注入，避免模型输出 <thinking> 标签拖慢响应）
+    if execution_mode != "direct":
+        sections.append(_load_template("thinking_style"))
 
     # 4. 澄清系统
     sections.append(_load_template("clarification"))
@@ -131,12 +132,15 @@ def build_dynamic_instructions(
 
     # 8. MCP 延迟工具
     if deferred_tool_names:
-        tools_text = "\n".join(f"  {name}" for name in deferred_tool_names)
+        tools_text = "\n".join(
+            f"  {t['name']}: {t['description']}" for t in deferred_tool_names
+        )
         sections.append(
-            f"<available_deferred_tools>\n"
-            f"以下外部工具可通过 tool_search 按需加载：\n{tools_text}\n\n"
-            f"使用方式：先调用 tool_search(\"select:工具名\") 加载，然后正常调用。\n"
-            f"</available_deferred_tools>"
+            f"<available_mcp_tools>\n"
+            f"以下 MCP 外部工具可直接通过 call_mcp_tool 调用：\n{tools_text}\n\n"
+            f"使用方式：call_mcp_tool(tool_name=\"工具名\", arguments={{...}})\n"
+            f"如需查看工具的完整参数定义，可先调用 tool_search(\"select:工具名\")。\n"
+            f"</available_mcp_tools>"
         )
 
     # 9. 用户记忆

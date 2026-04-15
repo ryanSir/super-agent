@@ -63,6 +63,7 @@ function App() {
 
   const [state, setState] = useState<UIState>(() => createInitialState(sessionId))
   const [input, setInput] = useState('')
+  const [mode, setMode] = useState<string>('auto')
   const sseRef = useRef<SSEClient | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -144,7 +145,7 @@ function App() {
       }
 
       try {
-        await submitQuery(sessionId, query)
+        await submitQuery(sessionId, query, mode)
       } catch {
         setState((prev) => ({
           ...prev,
@@ -153,7 +154,7 @@ function App() {
         }))
       }
     },
-    [sessionId, state.isProcessing],
+    [sessionId, state.isProcessing, mode],
   )
 
   const handleSubmit = useCallback(
@@ -353,7 +354,35 @@ function App() {
             {state.isProcessing ? '处理中...' : '发送'}
           </button>
         </form>
-        <p className="input-hint">Enter 发送 · Shift+Enter 换行 · / 选择 Skill</p>
+        <div className="footer-bar">
+          <div className="mode-selector">
+            <span className="mode-label">模式</span>
+            {[
+              { value: 'auto', label: '自动', icon: '⚡' },
+              { value: 'direct', label: '直接', icon: '↗' },
+              { value: 'plan_and_execute', label: '规划', icon: '📋' },
+              { value: 'sub_agent', label: '协作', icon: '👥' },
+            ].map((m) => (
+              <button
+                key={m.value}
+                type="button"
+                className={`mode-pill${mode === m.value ? ' mode-pill-active' : ''}`}
+                onClick={() => setMode(m.value)}
+                disabled={state.isProcessing}
+                title={
+                  m.value === 'auto' ? 'AI 自动判断最佳执行模式' :
+                  m.value === 'direct' ? '简单任务，直接回答' :
+                  m.value === 'plan_and_execute' ? '复杂任务，先规划再执行' :
+                  '多角色协作完成复杂任务'
+                }
+              >
+                <span className="mode-pill-icon">{m.icon}</span>
+                {m.label}
+              </button>
+            ))}
+          </div>
+          <span className="input-hint">Enter 发送 · Shift+Enter 换行 · / 选择 Skill</span>
+        </div>
       </footer>
     </div>
   )

@@ -77,6 +77,7 @@ class MCPClientManager:
     def __init__(self) -> None:
         self._clients: dict[str, Any] = {}  # name → fastmcp Client
         self._tool_to_server: dict[str, str] = {}  # tool_name → server_name
+        self._endpoints: list[MCPEndpointConfig] = []  # 保存端点配置供 refresh 使用
 
     async def connect(self, endpoints: list[MCPEndpointConfig]) -> int:
         """连接所有 MCP 端点并发现工具
@@ -94,15 +95,12 @@ class MCPClientManager:
             try:
                 logger.info(f"连接 MCP 端点 | name={ep.name} url={ep.url}")
                 client = Client(ep.url)
-                # 进入 async context 以建立连接
                 await client.__aenter__()
                 self._clients[ep.name] = client
 
-                # 发现工具
                 tools = await client.list_tools()
                 for tool in tools:
                     tool_name = tool.name
-                    # 处理跨端点工具名冲突：加 server 前缀
                     if tool_name in self._tool_to_server:
                         existing_server = self._tool_to_server[tool_name]
                         if existing_server != ep.name:
@@ -121,17 +119,65 @@ class MCPClientManager:
                     )
                     total_tools += 1
 
-                logger.info(
-                    f"MCP 端点连接成功 | name={ep.name} tools={len(tools)}"
-                )
+                logger.info(f"MCP 端点连接成功 | name={ep.name} tools={len(tools)}")
 
             except Exception as e:
                 logger.error(f"MCP 端点连接失败 | name={ep.name} url={ep.url} error={e}")
-                # 按 spec：跳过失败端点，继续其余
                 continue
 
+        self._endpoints = endpoints
         logger.info(f"MCP 客户端管理器初始化完成 | endpoints={len(self._clients)} tools={total_tools}")
         return total_tools
+
+    async def refresh(self) -> int:
+        """重新发现所有端点的工具列表，原子替换，避免清空后的空窗口
+
+        先在临时结构里构建新状态，全部成功后一次性替换，失败则保留旧状态。
+        Returns:
+            刷新后的工具总数
+        """
+        from src_deepagent.capabilities.mcp.deferred_registry import deferred_tool_registry, DeferredTool
+
+        if not self._clients:
+            logger.info("[MCPClientManager] 无已连接端点，跳过刷新")
+            return 0
+
+        new_tool_to_server: dict[str, str] = {}
+        new_tools: list[DeferredTool] = []
+        failed_endpoints: list[str] = []
+
+        for ep_name, client in self._clients.items():
+            try:
+                tools = await client.list_tools()
+                for tool in tools:
+                    tool_name = tool.name
+                    if tool_name in new_tool_to_server:
+                        existing_server = new_tool_to_server[tool_name]
+                        if existing_server != ep_name:
+                            tool_name = f"{ep_name}:{tool.name}"
+                    new_tool_to_server[tool_name] = ep_name
+                    new_tools.append(DeferredTool(
+                        name=tool_name,
+                        description=tool.description or "",
+                        schema=tool.inputSchema if hasattr(tool, "inputSchema") else {},
+                        server_name=ep_name,
+                    ))
+                logger.info(f"[MCPClientManager] 刷新采集完成 | endpoint={ep_name} tools={len(tools)}")
+            except Exception as e:
+                logger.error(f"[MCPClientManager] 刷新失败 | endpoint={ep_name} error={e}")
+                failed_endpoints.append(ep_name)
+
+        if failed_endpoints and not new_tools:
+            # 全部失败，保留旧状态
+            logger.error(f"[MCPClientManager] 所有端点刷新失败，保留旧状态 | failed={failed_endpoints}")
+            return len(self._tool_to_server)
+
+        # 原子替换
+        self._tool_to_server = new_tool_to_server
+        deferred_tool_registry.replace(new_tools)
+
+        logger.info(f"[MCPClientManager] 全量刷新完成 | total_tools={len(new_tools)} failed={failed_endpoints}")
+        return len(new_tools)
 
     async def call_tool(self, tool_name: str, arguments: dict[str, Any] | None = None) -> dict[str, Any]:
         """执行 MCP 工具

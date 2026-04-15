@@ -17,9 +17,9 @@ class LLMSettings(BaseSettings):
 
     api_key: str = Field(default="", alias="OPENAI_API_KEY")
     base_url: str = Field(default="", alias="OPENAI_API_BASE")
-    planning_model: str = Field(default="claude-4.5-sonnet", alias="PLANNING_MODEL")
-    execution_model: str = Field(default="gpt-4o-mini", alias="EXECUTION_MODEL")
-    fast_model: str = Field(default="gpt-4o-mini", alias="FAST_MODEL")
+    orchestrator_model: str = Field(default="claude-4.5-sonnet", alias="ORCHESTRATOR_MODEL")
+    subagent_model: str = Field(default="gpt-4o-mini", alias="SUBAGENT_MODEL")
+    classifier_model: str = Field(default="gpt-4o-mini", alias="CLASSIFIER_MODEL")
     request_timeout: int = Field(default=60, alias="LLM_REQUEST_TIMEOUT")
     enable_litellm: bool = Field(default=False, alias="ENABLE_LITELLM")
     baidu_api_key: str = Field(default="", alias="BAIDU_API_KEY")
@@ -98,6 +98,7 @@ class MCPSettings(BaseSettings):
     servers_json: str = Field(default="", alias="MCP_SERVERS")
     server_url: str = Field(default="", alias="MCP_SERVER_URL")
     connect_timeout: float = Field(default=10.0, alias="MCP_CONNECT_TIMEOUT")
+    refresh_interval: int = Field(default=300, alias="MCP_REFRESH_INTERVAL")  # 秒，0 表示不刷新
 
     model_config = {"env_prefix": "", "extra": "ignore", "env_file": ".env"}
 
@@ -105,14 +106,8 @@ class MCPSettings(BaseSettings):
 class ReasoningSettings(BaseSettings):
     """推理引擎配置"""
 
-    # LLM 兜底：模糊区间阈值
-    fuzzy_zone_low: float = Field(default=0.35, alias="REASONING_FUZZY_ZONE_LOW")
-    fuzzy_zone_high: float = Field(default=0.55, alias="REASONING_FUZZY_ZONE_HIGH")
+    # LLM 主分类超时
     llm_classify_timeout: float = Field(default=5.0, alias="REASONING_LLM_CLASSIFY_TIMEOUT")
-    llm_classify_enabled: bool = Field(default=True, alias="REASONING_LLM_CLASSIFY_ENABLED")
-
-    # 模式升级
-    escalation_enabled: bool = Field(default=False, alias="REASONING_ESCALATION_ENABLED")
 
     model_config = {"env_prefix": "", "extra": "ignore", "env_file": ".env"}
 

@@ -22,9 +22,9 @@ def _init_aliases() -> None:
     global _MODEL_ALIASES  # noqa: PLW0603
     settings = get_settings()
     _MODEL_ALIASES = {
-        "planning": settings.llm.planning_model,
-        "execution": settings.llm.execution_model,
-        "fast": settings.llm.fast_model,
+        "orchestrator": settings.llm.orchestrator_model,
+        "subagent": settings.llm.subagent_model,
+        "classifier": settings.llm.classifier_model,
     }
 
 

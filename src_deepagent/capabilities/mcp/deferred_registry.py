@@ -34,6 +34,15 @@ class DeferredToolRegistry:
     def __init__(self) -> None:
         self._tools: dict[str, DeferredTool] = {}
 
+    def clear(self) -> None:
+        """清空所有已注册工具（刷新前调用）"""
+        self._tools.clear()
+
+    def replace(self, tools: list[DeferredTool]) -> None:
+        """原子替换全部工具（刷新时使用，避免清空后重建的空窗口）"""
+        new = {t.name: t for t in tools}
+        self._tools = new
+
     def register(
         self,
         name: str,

@@ -10,16 +10,12 @@ import importlib
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 from src_deepagent.core.logging import get_logger, session_id_var, trace_id_var
 from src_deepagent.orchestrator.agent_factory import create_orchestrator_agent
-from src_deepagent.orchestrator.reasoning_engine import (
-    ExecutionMode,
-    ReasoningEngine,
-    escalate_plan,
-)
+from src_deepagent.orchestrator.reasoning_engine import ReasoningEngine
 from src_deepagent.schemas.agent import OrchestratorOutput, SessionStatus
 from src_deepagent.schemas.api import QueryRequest, QueryResponse
 from src_deepagent.state.session_manager import SessionManager
@@ -74,6 +70,18 @@ def configure(
     _session_manager = SessionManager(redis_client=redis_client)
     if redis_client:
         _stream_adapter = StreamAdapter(redis_client=redis_client)
+
+
+async def startup() -> None:
+    """启动预热：MCP 连接 + 定期刷新任务（由 main.py lifespan 调用）"""
+    if _reasoning_engine:
+        await _reasoning_engine.startup()
+
+
+async def shutdown() -> None:
+    """关闭清理：停止刷新任务（由 main.py lifespan 调用）"""
+    if _reasoning_engine:
+        await _reasoning_engine.shutdown()
 
 
 # ── 端点 ──────────────────────────────────────────────────
@@ -175,54 +183,16 @@ async def stream_events(session_id: str, request: Request) -> StreamingResponse:
     )
 
 
+@router.post("/admin/reload-mcp")
+async def reload_mcp() -> dict:
+    """手动触发 MCP 工具刷新（运维接口）"""
+    if not _reasoning_engine:
+        raise HTTPException(status_code=503, detail="服务未初始化")
+    tool_count = await _reasoning_engine.reload_mcp()
+    return {"success": True, "tool_count": tool_count}
+
+
 # ── 编排执行 ─────────────────────────────────────────────
-
-
-def _needs_escalation(result: Any, plan: Any) -> bool:
-    """判断 DIRECT 模式结果是否需要升级到 AUTO
-
-    升级条件（满足任一）：
-    - Agent 执行异常（result 为 None）
-    - 输出为空或过短（LLM 无法直接回答）
-    - 输出开头包含明确的自述无法完成的文本
-
-    注意：只检查输出前 200 字符（Agent 自述区域），避免在长内容中误匹配。
-    """
-    if plan.mode != ExecutionMode.DIRECT:
-        return False
-
-    if plan.escalated_from is not None:
-        # 已经是升级后的计划，不再二次升级
-        return False
-
-    from src_deepagent.config.settings import get_settings
-
-    if not get_settings().reasoning.escalation_enabled:
-        return False
-
-    if result is None:
-        return True
-
-    output = result.output if hasattr(result, "output") else str(result)
-    answer = output if isinstance(output, str) else (
-        output.answer if hasattr(output, "answer") else str(output)
-    )
-
-    # 空输出
-    if not answer or not answer.strip():
-        return True
-
-    # 只检查开头 200 字符，避免在搜索结果等长内容中误匹配
-    head = answer.strip()[:200]
-
-    # Agent 明确自述无法完成（排除"需要搜索/需要查询"等常见内容描述词）
-    _ESCALATION_SIGNALS = (
-        "无法直接回答", "无法完成", "我无法", "无法回答",
-        "需要使用工具", "需要调用工具",
-        "I cannot directly", "I don't have access",
-        "I'm unable to", "I need to use tools",
-    )
-    return any(signal in head for signal in _ESCALATION_SIGNALS)
 
 
 def _extract_last_text(run: Any) -> str:
@@ -371,16 +341,32 @@ async def _execute_plan(
         iter_kwargs: dict = {
             "deps": deps,
             "message_history": message_history or None,
-            "usage_limits": UsageLimits(request_limit=15),
+            "usage_limits": UsageLimits(request_limit=15), # 单次 Agent 运行最多向LLM发起的请求次数
         }
 
-        # Claude 模型开启 extended thinking
+        # Claude 模型按模式决定是否开启 extended thinking
         try:
             from pydantic_ai.models.anthropic import AnthropicModelSettings
-            iter_kwargs["model_settings"] = AnthropicModelSettings(
-                anthropic_thinking={"type": "enabled", "budget_tokens": 2000},
-                max_tokens=8000,
-            )
+            from anthropic.types.beta import BetaThinkingConfigEnabledParam
+            _MAX_TOKENS = {
+                ExecutionMode.DIRECT: 4000,
+                ExecutionMode.AUTO: 8000,
+                ExecutionMode.PLAN_AND_EXECUTE: 16000,
+                ExecutionMode.SUB_AGENT: 16000,
+            }
+            max_tokens = _MAX_TOKENS.get(plan.mode, 8000)
+            if plan.mode != ExecutionMode.DIRECT:
+                iter_kwargs["model_settings"] = AnthropicModelSettings(
+                    anthropic_thinking=BetaThinkingConfigEnabledParam(
+                        type="enabled",
+                        budget_tokens=max(1024, max_tokens // 4),
+                    ),
+                    max_tokens=max_tokens,
+                )
+            else:
+                iter_kwargs["model_settings"] = AnthropicModelSettings(
+                    max_tokens=max_tokens,
+                )
         except Exception:
             pass
 
@@ -589,21 +575,6 @@ async def _run_orchestration(
 
         # Stage 2: Execute
         result = await _execute_plan(plan, request, session_id, trace_id, message_history)
-
-        # Stage 2.5: 模式升级检查（仅 DIRECT → AUTO，最多一次）
-        if _needs_escalation(result, plan):
-            escalated = escalate_plan(plan, ExecutionMode.AUTO)
-            logger.info(
-                f"模式升级 | session_id={session_id} "
-                f"{plan.mode.value} → {escalated.mode.value}"
-            )
-            await _publish(session_id, {
-                "event_type": "mode_escalated",
-                "from_mode": plan.mode.value,
-                "to_mode": escalated.mode.value,
-            })
-            result = await _execute_plan(escalated, request, session_id, trace_id, message_history)
-            plan = escalated
 
         # 保存对话历史
         if _session_manager and hasattr(result, "all_messages"):

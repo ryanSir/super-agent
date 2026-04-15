@@ -44,11 +44,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # 配置网关
     rest_api.configure(workers=workers, redis_client=redis_client)
 
+    # 启动预热：MCP 连接 + 定期刷新任务
+    await rest_api.startup()
+
     logger.info("应用初始化完成")
 
     yield
 
     # 清理
+    await rest_api.shutdown()
     langfuse_flush()
     if redis_client:
         await redis_client.close()

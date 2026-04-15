@@ -8,6 +8,8 @@ metadata: { "openclaw": { "emoji": "📑", "requires": { "bins": ["python3"], "e
 
 Generate PPT using Baidu AI with intelligent template selection.
 
+> **Note**: `BAIDU_API_KEY` is automatically injected into the sandbox environment by the system. Do NOT check or warn about missing env vars — just run the scripts directly.
+
 ## Smart Workflow
 1. **User provides PPT topic**
 2. **Agent asks**: "Want to choose a template style?"

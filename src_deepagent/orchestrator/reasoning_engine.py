@@ -43,7 +43,7 @@ class ComplexityLevel(str, enum.Enum):
 _LEVEL_TO_MODE: dict[ComplexityLevel, ExecutionMode] = {
     ComplexityLevel.LOW: ExecutionMode.DIRECT,
     ComplexityLevel.MEDIUM: ExecutionMode.AUTO,
-    ComplexityLevel.HIGH: ExecutionMode.SUB_AGENT,
+    ComplexityLevel.HIGH: ExecutionMode.PLAN_AND_EXECUTE,
     ComplexityLevel.VERY_HIGH: ExecutionMode.SUB_AGENT,
 }
 
@@ -63,7 +63,6 @@ class InfraResources:
     """底层基础设施资源（被桥接工具依赖）"""
 
     workers: dict[str, Any]
-    mcp_toolsets: list[Any]
 
 
 @dataclass(frozen=True)
@@ -71,7 +70,7 @@ class PromptContext:
     """注入 System Prompt 的文本内容"""
 
     skill_summary: str
-    deferred_tool_names: list[str] = field(default_factory=list)
+    deferred_tool_summaries: list[dict[str, str]] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -94,41 +93,9 @@ class ExecutionPlan:
     """推理引擎输出"""
 
     mode: ExecutionMode
-    complexity: ComplexityScore
     prompt_prefix: str
     resources: ResolvedResources
-    escalated_from: ExecutionMode | None = None
 
-
-def escalate_plan(plan: ExecutionPlan, target: ExecutionMode) -> ExecutionPlan:
-    """将执行计划升级到更高模式
-
-    仅支持 DIRECT → AUTO 升级路径，保留原有资源和复杂度信息。
-    """
-    _ALLOWED_ESCALATIONS: dict[ExecutionMode, set[ExecutionMode]] = {
-        ExecutionMode.DIRECT: {ExecutionMode.AUTO},
-    }
-
-    allowed = _ALLOWED_ESCALATIONS.get(plan.mode, set())
-    if target not in allowed:
-        raise ReasoningError(
-            f"不支持的模式升级路径: {plan.mode.value} → {target.value}"
-        )
-
-    # 根据目标模式选择 prompt_prefix
-    prefix_map = {
-        ExecutionMode.AUTO: "",
-        ExecutionMode.PLAN_AND_EXECUTE: _PLAN_EXECUTE_PREFIX,
-        ExecutionMode.SUB_AGENT: _SUB_AGENT_PREFIX,
-    }
-
-    return ExecutionPlan(
-        mode=target,
-        complexity=plan.complexity,
-        prompt_prefix=prefix_map.get(target, ""),
-        resources=plan.resources,
-        escalated_from=plan.mode,
-    )
 
 
 # ── 规则匹配模式 ─────────────────────────────────────────
@@ -266,6 +233,52 @@ class ReasoningEngine:
     def __init__(self, workers: dict[str, Any]) -> None:
         self._workers = workers
         self._resources_cache: ResolvedResources | None = None
+        self._refresh_task: asyncio.Task | None = None
+
+    async def startup(self) -> None:
+        """启动时预热：建立 MCP 连接 + 预热资源缓存 + 启动定期刷新任务"""
+        # 先建立 MCP 连接，工具元数据注册到 deferred_tool_registry
+        await self._connect_mcp()
+        # 再预热资源缓存
+        await self._resolve_resources()
+
+        from src_deepagent.config.settings import get_settings
+        interval = get_settings().mcp.refresh_interval
+        if interval > 0:
+            self._refresh_task = asyncio.create_task(self._refresh_loop(interval))
+            logger.info(f"[ReasoningEngine] MCP 定期刷新已启动 | interval={interval}s")
+
+    async def shutdown(self) -> None:
+        """关闭时取消刷新任务"""
+        if self._refresh_task and not self._refresh_task.done():
+            self._refresh_task.cancel()
+            try:
+                await self._refresh_task
+            except asyncio.CancelledError:
+                pass
+        logger.info("[ReasoningEngine] 刷新任务已停止")
+
+    async def reload_mcp(self) -> int:
+        """手动触发 MCP 工具刷新，清除资源缓存
+
+        Returns:
+            刷新后的工具总数
+        """
+        from src_deepagent.capabilities.mcp.client_manager import mcp_client_manager
+        tool_count = await mcp_client_manager.refresh()
+        self._resources_cache = None
+        logger.info(f"[ReasoningEngine] MCP 手动刷新完成 | tools={tool_count}")
+        return tool_count
+
+    async def _refresh_loop(self, interval: int) -> None:
+        """定期刷新 MCP 工具列表"""
+        while True:
+            await asyncio.sleep(interval)
+            try:
+                tool_count = await self.reload_mcp()
+                logger.info(f"[ReasoningEngine] MCP 定期刷新完成 | tools={tool_count}")
+            except Exception as e:
+                logger.error(f"[ReasoningEngine] MCP 定期刷新失败 | error={e}")
 
     # ── 公开接口 ──────────────────────────────────────────
 
@@ -277,21 +290,19 @@ class ReasoningEngine:
             mode: 用户指定的模式（auto/direct/plan_and_execute/sub_agent）
 
         Returns:
-            ExecutionPlan 包含模式、复杂度、prompt 前缀和已获取资源
+            ExecutionPlan 包含模式、prompt 前缀和已获取资源
         """
-        # Step 1: 意图理解 + 复杂度评估 → 执行模式
-        complexity = await self._evaluate_complexity(query)
-        execution_mode = self._resolve_mode(query, mode, complexity)
+        # Step 1: 执行模式决策
+        execution_mode = await self._resolve_mode(query, mode)
 
         # Step 2: 获取工具资源（一次性，缓存复用）
         resources = await self._resolve_resources()
 
         # Step 3: 装配执行计划
-        plan = self._assemble_plan(execution_mode, complexity, resources)
+        plan = self._assemble_plan(execution_mode, resources)
 
         logger.info(
             f"[ReasoningEngine] 决策完成 | mode={execution_mode.value} "
-            f"complexity={complexity.level.value}({complexity.score:.2f}) "
             f"query={query[:80]}"
         )
         return plan
@@ -302,13 +313,12 @@ class ReasoningEngine:
 
     # ── 模式决策 ──────────────────────────────────────────
 
-    def _resolve_mode(
+    async def _resolve_mode(
         self,
         query: str,
         mode: str,
-        complexity: ComplexityScore,
     ) -> ExecutionMode:
-        """三级分类：显式指定 → 规则匹配 → 复杂度评估"""
+        """模式决策：显式指定 → 快筛 → LLM 主决策 → 规则降级"""
 
         # Level 0: 用户显式指定
         if mode != "auto":
@@ -319,9 +329,22 @@ class ReasoningEngine:
             except ValueError:
                 logger.warning(f"无效的执行模式: {mode}，回退到 auto")
 
-        # Level 1: 规则匹配（零延迟）
+        # Level 1: 高置信度快筛（极短无动词 → DIRECT，省一次 LLM 调用）
+        if self._is_trivial_query(query):
+            self._log_classify(query, mode, ExecutionMode.DIRECT, "trivial_fast")
+            return ExecutionMode.DIRECT
+
+        # Level 2: LLM 主分类
+        llm_mode = await self._llm_classify_primary(query)
+        if llm_mode is not None:
+            self._log_classify(query, mode, llm_mode, "llm_primary")
+            return llm_mode
+
+        # Level 3: LLM 失败 → 降级到规则+复杂度评估（此时才计算）
+        logger.info("[ReasoningEngine] LLM 主分类失败，降级到规则评估")
+        complexity = await self._evaluate_complexity(query)
+
         if self._match_plan_patterns(query):
-            # 进一步评估：HIGH/VERY_HIGH 升级为 SUB_AGENT
             if complexity.level in (ComplexityLevel.HIGH, ComplexityLevel.VERY_HIGH):
                 self._log_classify(query, mode, ExecutionMode.SUB_AGENT, "rule+complexity")
                 return ExecutionMode.SUB_AGENT
@@ -332,15 +355,29 @@ class ReasoningEngine:
             self._log_classify(query, mode, ExecutionMode.DIRECT, "rule")
             return ExecutionMode.DIRECT
 
-        # Level 2: 复杂度评估
         resolved = complexity.suggested_mode
         self._log_classify(query, mode, resolved, "complexity")
         return resolved
 
+    def _is_trivial_query(self, query: str) -> bool:
+        """高置信度快筛：极短查询且无任务动词 → 一定是 DIRECT"""
+        if len(query) > 30:
+            return False
+        # 无任何任务动词
+        has_zh_verb = bool(re.search(
+            r"(搜索|检索|查找|分析|对比|比较|生成|创建|编写|绘制|总结|翻译|执行|运行|部署)", query
+        ))
+        has_en_verb = bool(re.search(
+            r"\b(search|find|analyze|compare|generate|create|write|draw|summarize|translate|execute|run|deploy)\b",
+            query,
+            re.IGNORECASE,
+        ))
+        return not has_zh_verb and not has_en_verb
+
     # ── 复杂度评估 ────────────────────────────────────────
 
     async def _evaluate_complexity(self, query: str) -> ComplexityScore:
-        """五维度规则评估 + 模糊区间 LLM 兜底"""
+        """五维度规则评估（仅作为 LLM 失败时的降级兜底）"""
         dimensions = {
             "task_count": self._estimate_task_count(query),
             "domain_span": self._estimate_domain_span(query),
@@ -351,25 +388,6 @@ class ReasoningEngine:
 
         score = sum(dimensions[k] * self.WEIGHTS[k] for k in self.WEIGHTS)
         score = max(0.0, min(1.0, score))
-
-        # 模糊区间 LLM 兜底
-        from src_deepagent.config.settings import get_settings
-
-        settings = get_settings()
-        fuzzy_low = settings.reasoning.fuzzy_zone_low
-        fuzzy_high = settings.reasoning.fuzzy_zone_high
-
-        if (
-            settings.reasoning.llm_classify_enabled
-            and fuzzy_low <= score <= fuzzy_high
-        ):
-            llm_score = await self._llm_classify(query, score, dimensions)
-            if llm_score is not None:
-                logger.info(
-                    f"[ReasoningEngine] LLM 兜底生效 | "
-                    f"rule_score={score:.2f} → llm_score={llm_score:.2f}"
-                )
-                score = llm_score
 
         level = self._score_to_level(score)
         suggested_mode = _LEVEL_TO_MODE[level]
@@ -382,7 +400,7 @@ class ReasoningEngine:
         )
 
     def _estimate_task_count(self, query: str) -> float:
-        """维度1: 估算隐含子任务数量（通过动词和连接词）"""
+        """维度1: 估算隐含子任务数量（仅通过动词，连接词由 dependency_depth 负责）"""
         # 中文动词
         zh_verbs = len(re.findall(
             r"(搜索|检索|查找|分析|对比|比较|生成|创建|编写|绘制|总结|翻译|执行|运行|部署)", query
@@ -393,14 +411,8 @@ class ReasoningEngine:
             query,
             re.IGNORECASE,
         ))
-        # 连接词
-        connectors = len(re.findall(
-            r"(然后|接着|之后|并且|同时|以及|再|最后|then|next|after|and|also|finally)",
-            query,
-            re.IGNORECASE,
-        ))
 
-        total = zh_verbs + en_verbs + connectors
+        total = zh_verbs + en_verbs
         if total <= 1:
             return 0.1
         if total == 2:
@@ -423,9 +435,9 @@ class ReasoningEngine:
         if count <= 1:
             return 0.1
         if count == 2:
-            return 0.5
+            return 0.3
         if count == 3:
-            return 0.8
+            return 0.7
         return 1.0
 
     def _estimate_dependency_depth(self, query: str) -> float:
@@ -476,16 +488,10 @@ class ReasoningEngine:
             return ComplexityLevel.HIGH
         return ComplexityLevel.VERY_HIGH
 
-    async def _llm_classify(
-        self,
-        query: str,
-        rule_score: float,
-        dimensions: dict[str, float],
-    ) -> float | None:
-        """模糊区间 LLM 兜底分类
+    async def _llm_classify_primary(self, query: str) -> ExecutionMode | None:
+        """LLM 主决策分类
 
-        当规则评估分数落在模糊区间时，调用 fast_model 进行更精确的判断。
-        超时或异常时返回 None（保留规则分数）。
+        直接返回执行模式，而非分数。超时或异常时返回 None（降级到规则评估）。
         """
         from src_deepagent.config.settings import get_settings
         from src_deepagent.llm.config import get_model
@@ -494,77 +500,95 @@ class ReasoningEngine:
         timeout = settings.reasoning.llm_classify_timeout
 
         prompt = (
-            "你是一个任务复杂度评估器。根据用户查询判断其复杂度分数（0.0~1.0）。\n\n"
-            "评分标准：\n"
-            "- 0.0~0.25: 简单任务（单步骤，直接回答或单次工具调用）\n"
-            "- 0.25~0.50: 中等任务（需要自主判断使用哪些工具）\n"
-            "- 0.50~0.75: 复杂任务（多步骤，需要规划或多个子任务）\n"
-            "- 0.75~1.0: 非常复杂（需要多个专业角色协作）\n\n"
-            f"规则引擎预评估：score={rule_score:.2f}，维度分数={json.dumps(dimensions, ensure_ascii=False)}\n\n"
+            "你是一个 AI Agent 任务路由器。根据用户查询判断应使用哪种执行模式。\n\n"
+            "可选模式（只能选一个）：\n"
+            "- direct: 简单任务，可直接回答或单次工具调用（问候、翻译、单步查询、简单问答）\n"
+            "- auto: 中等任务，需要 LLM 自主判断调用哪些工具，但不需要显式规划（单领域多步骤）\n"
+            "- plan_and_execute: 复杂多步骤任务，需要先规划 DAG 再按序执行（跨领域、有依赖链）\n"
+            "- sub_agent: 非常复杂的任务，需要多个专业角色协作完成（研究+分析+报告等）\n\n"
+            "判断要点：\n"
+            "- 注意区分「描述性提及」和「实际任务动词」，如「搜索功能有 bug」中的搜索不是任务\n"
+            "- 否定语境中的动词不算任务，如「不要搜索，直接告诉我」应为 direct\n"
+            "- 同义动词只算一个任务，如「搜索并检索」是一个动作\n"
+            "- 关注实际要完成的独立步骤数量，而非关键词数量\n\n"
+            "示例：\n"
+            '- "你好" → {"mode": "direct", "reason": "简单问候"}\n'
+            '- "翻译这段话" → {"mode": "direct", "reason": "单步翻译任务"}\n'
+            '- "不要搜索，直接告诉我答案" → {"mode": "direct", "reason": "否定语境，实际是直接问答"}\n'
+            '- "搜索功能的分析模块有 bug" → {"mode": "direct", "reason": "描述性提及，不是多步骤任务"}\n'
+            '- "写一个快速排序算法" → {"mode": "auto", "reason": "单领域编码任务，需要工具但不需要规划"}\n'
+            '- "搜索并检索相关论文" → {"mode": "auto", "reason": "同义动词，实际是单步搜索"}\n'
+            '- "写一个分布式爬虫系统，支持多节点调度、断点续传" → {"mode": "auto", "reason": "单领域复杂编码，LLM 自主判断即可"}\n'
+            '- "先搜索最新论文，再对比分析趋势，最后生成报告" → {"mode": "plan_and_execute", "reason": "三个有依赖的步骤，需要规划"}\n'
+            '- "检索专利数据，分析技术趋势，生成可视化图表，并撰写分析报告" → {"mode": "sub_agent", "reason": "跨多领域，需要研究+分析+可视化+写作协作"}\n\n'
             f"用户查询：{query[:500]}\n\n"
-            '请只返回 JSON：{"score": 0.xx, "reason": "一句话理由"}'
+            '请只返回 JSON：{"mode": "direct|auto|plan_and_execute|sub_agent", "reason": "一句话理由"}'
         )
 
         try:
             from pydantic_ai import Agent
+            from pydantic_ai.settings import ModelSettings
 
             classifier = Agent(
-                model=get_model("fast"),
+                model=get_model("classifier"),
                 output_type=str,
-                instructions="你是复杂度评估器，只返回 JSON，不要其他内容。",
-                name="ComplexityClassifier",
+                instructions="你是任务路由器，只返回 JSON，不要其他内容。",
+                name="ModeClassifier",
             )
 
             result = await asyncio.wait_for(
-                classifier.run(prompt),
+                classifier.run(
+                    prompt,
+                    model_settings=ModelSettings(temperature=0.0),
+                ),
                 timeout=timeout,
             )
 
             raw = result.output if hasattr(result, "output") else str(result)
-            # 提取 JSON（兼容 markdown code block 包裹）
             raw = raw.strip()
             if raw.startswith("```"):
                 raw = raw.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
 
             parsed = json.loads(raw)
-            llm_score = float(parsed["score"])
+            mode_str = parsed["mode"].strip().lower()
             reason = parsed.get("reason", "")
 
-            if not 0.0 <= llm_score <= 1.0:
-                logger.warning(f"[ReasoningEngine] LLM 返回分数越界: {llm_score}")
+            try:
+                llm_mode = ExecutionMode(mode_str)
+            except ValueError:
+                logger.warning(
+                    f"[ReasoningEngine] LLM 返回无效模式: {mode_str}"
+                )
                 return None
 
             logger.info(
-                f"[ReasoningEngine] LLM 分类完成 | "
-                f"score={llm_score:.2f} reason={reason}"
+                f"[ReasoningEngine] LLM 主分类完成 | "
+                f"mode={llm_mode.value} reason={reason}"
             )
-            return llm_score
+            return llm_mode
 
         except asyncio.TimeoutError:
             logger.warning(
-                f"[ReasoningEngine] LLM 分类超时({timeout}s)，保留规则分数"
+                f"[ReasoningEngine] LLM 主分类超时({timeout}s)，降级到规则评估"
             )
             return None
         except (json.JSONDecodeError, KeyError, ValueError) as e:
             logger.warning(
-                f"[ReasoningEngine] LLM 分类结果解析失败 | error={e}"
+                f"[ReasoningEngine] LLM 主分类解析失败 | error={e}"
             )
             return None
         except Exception as e:
             logger.warning(
-                f"[ReasoningEngine] LLM 分类异常 | error={e}"
+                f"[ReasoningEngine] LLM 主分类异常 | error={e}"
             )
             return None
 
     # ── 资源获取 ──────────────────────────────────────────
 
     async def _resolve_resources(self) -> ResolvedResources:
-        """获取所有工具资源（MCP 连接只建立一次）"""
+        """获取工具资源（缓存复用，MCP 刷新后自动失效重建）"""
         if self._resources_cache is not None:
             return self._resources_cache
-
-        # MCP toolsets（网络连接，最昂贵）
-        mcp_toolsets = await self._get_mcp_toolsets()
 
         # Skill summary（内存读取）
         from src_deepagent.capabilities.skills.registry import skill_registry
@@ -576,20 +600,16 @@ class ReasoningEngine:
 
         agent_tools = create_base_tools(self._workers)
 
-        # MCP 延迟加载工具名称（只注入名称到 prompt，不加载完整 schema）
+        # MCP 延迟加载工具摘要（名称+描述注入 prompt，让 LLM 知道工具用途）
         from src_deepagent.capabilities.mcp.deferred_registry import deferred_tool_registry
 
-        deferred_tool_names = deferred_tool_registry.get_tool_names()
+        deferred_tool_summaries = deferred_tool_registry.get_tool_summaries()
 
-        # 构建三层资源结构
-        infra = InfraResources(
-            workers=self._workers,
-            mcp_toolsets=mcp_toolsets,
-        )
+        infra = InfraResources(workers=self._workers)
 
         prompt_ctx = PromptContext(
             skill_summary=skill_summary,
-            deferred_tool_names=deferred_tool_names,
+            deferred_tool_summaries=deferred_tool_summaries,
         )
 
         self._resources_cache = ResolvedResources(
@@ -601,14 +621,13 @@ class ReasoningEngine:
         logger.info(
             f"[ReasoningEngine] 资源获取完成 | "
             f"workers={len(self._workers)} "
-            f"mcp={len(mcp_toolsets)} "
             f"agent_tools={len(agent_tools)} "
-            f"deferred_tools={len(deferred_tool_names)}"
+            f"deferred_tools={len(deferred_tool_summaries)}"
         )
         return self._resources_cache
 
-    async def _get_mcp_toolsets(self) -> list[Any]:
-        """获取 MCP toolsets（多端点，降级处理）"""
+    async def _connect_mcp(self) -> None:
+        """建立 MCP 连接，工具元数据注册到 deferred_tool_registry"""
         from src_deepagent.config.settings import get_settings
         from src_deepagent.capabilities.mcp.client_manager import (
             mcp_client_manager,
@@ -622,56 +641,29 @@ class ReasoningEngine:
         )
 
         if not endpoints:
-            return []
+            return
 
         try:
             tool_count = await mcp_client_manager.connect(endpoints)
             logger.info(f"[ReasoningEngine] MCP 连接完成 | tools={tool_count}")
         except Exception as e:
             logger.error(f"[ReasoningEngine] MCP 连接异常 | error={e}")
-            return []
-
-        # MCP 工具通过 call_mcp_tool 桥接工具执行，不需要注入 pydantic_deep toolsets
-        return []
 
     # ── 执行计划装配 ──────────────────��───────────────────
 
     def _assemble_plan(
         self,
         mode: ExecutionMode,
-        complexity: ComplexityScore,
         resources: ResolvedResources,
     ) -> ExecutionPlan:
         """根据模式装配执行计划"""
-        if mode == ExecutionMode.DIRECT:
-            return ExecutionPlan(
-                mode=mode,
-                complexity=complexity,
-                prompt_prefix="",
-                resources=resources,
-            )
-
-        if mode == ExecutionMode.PLAN_AND_EXECUTE:
-            return ExecutionPlan(
-                mode=mode,
-                complexity=complexity,
-                prompt_prefix=_PLAN_EXECUTE_PREFIX,
-                resources=resources,
-            )
-
-        if mode == ExecutionMode.SUB_AGENT:
-            return ExecutionPlan(
-                mode=mode,
-                complexity=complexity,
-                prompt_prefix=_SUB_AGENT_PREFIX,
-                resources=resources,
-            )
-
-        # AUTO
+        prefix_map = {
+            ExecutionMode.PLAN_AND_EXECUTE: _PLAN_EXECUTE_PREFIX,
+            ExecutionMode.SUB_AGENT: _SUB_AGENT_PREFIX,
+        }
         return ExecutionPlan(
             mode=mode,
-            complexity=complexity,
-            prompt_prefix="",
+            prompt_prefix=prefix_map.get(mode, ""),
             resources=resources,
         )
 
