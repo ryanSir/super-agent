@@ -16,7 +16,7 @@ from src_deepagent.config.settings import get_settings
 from src_deepagent.core.logging import get_logger
 from src_deepagent.gateway import rest_api, websocket_api
 from src_deepagent.llm.config import configure_litellm
-from src_deepagent.monitoring.langfuse_tracer import flush as langfuse_flush
+from src_deepagent.monitoring.langfuse_tracer import configure_langfuse, shutdown as langfuse_shutdown
 from src_deepagent.capabilities.skills.registry import skill_registry
 
 logger = get_logger(__name__)
@@ -30,6 +30,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     # 初始化 LiteLLM
     configure_litellm()
+
+    # 初始化 Langfuse 追踪
+    configure_langfuse()
 
     # 初始化 Redis
     redis_client = await _init_redis(settings)
@@ -53,7 +56,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     # 清理
     await rest_api.shutdown()
-    langfuse_flush()
+    langfuse_shutdown()
     if redis_client:
         await redis_client.close()
     logger.info("应用关闭")

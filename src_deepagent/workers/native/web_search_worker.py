@@ -13,6 +13,7 @@ from typing import Any
 import httpx
 
 from src_deepagent.core.logging import get_logger
+from src_deepagent.schemas.agent import TaskNode, WorkerResult
 from src_deepagent.workers.base import BaseWorker
 
 logger = get_logger(__name__)
@@ -24,17 +25,28 @@ class WebSearchWorker(BaseWorker):
     """百度千帆 AI 搜索"""
 
     def __init__(self) -> None:
-        super().__init__(name="web_search_worker")
-        self._api_key = os.getenv("BAIDU_API_KEY", "")
+        from src_deepagent.config.settings import get_settings
+        self._api_key = get_settings().llm.baidu_api_key
         if not self._api_key:
             logger.warning("BAIDU_API_KEY 未配置，WebSearchWorker 不可用")
 
-    async def _do_execute(self, task: Any) -> Any:
+    @property
+    def name(self) -> str:
+        return "web_search_worker"
+
+    async def _do_execute(self, task: TaskNode) -> WorkerResult:
         """执行搜索"""
         data = task.input_data
         query = data["query"]
         count = min(max(data.get("count", 10), 1), 50)
         freshness = data.get("freshness")
+
+        if not self._api_key:
+            return WorkerResult(
+                task_id=task.task_id,
+                success=False,
+                error="BAIDU_API_KEY 未配置",
+            )
 
         search_filter = _build_time_filter(freshness)
 
@@ -58,73 +70,25 @@ class WebSearchWorker(BaseWorker):
             result = resp.json()
 
         if "code" in result:
-            raise RuntimeError(result.get("message", "百度搜索 API 错误"))
-
-        references = result.get("references", [])
-        # 移除 snippet 字段（太长，浪费 token）
-        for item in references:
-            item.pop("snippet", None)
-
-        return {
-            "success": True,
-            "query": query,
-            "count": len(references),
-            "references": references,
-        }
-
-
-async def web_search(
-    api_key: str,
-    query: str,
-    count: int = 10,
-    freshness: str | None = None,
-) -> dict[str, Any]:
-    """独立搜索函数（不依赖 Worker 体系，供 base_tools 直接调用）"""
-    if not api_key:
-        return {"success": False, "error": "BAIDU_API_KEY 未配置"}
-
-    count = min(max(count, 1), 50)
-    search_filter = _build_time_filter(freshness)
-
-    request_body = {
-        "messages": [{"content": query, "role": "user"}],
-        "search_source": "baidu_search_v2",
-        "resource_type_filter": [{"type": "web", "top_k": count}],
-        "search_filter": search_filter,
-    }
-
-    try:
-        async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.post(
-                _BAIDU_SEARCH_URL,
-                json=request_body,
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json",
-                },
+            return WorkerResult(
+                task_id=task.task_id,
+                success=False,
+                error=result.get("message", "百度搜索 API 错误"),
             )
-            resp.raise_for_status()
-            result = resp.json()
-
-        if "code" in result:
-            return {"success": False, "error": result.get("message", "API 错误")}
 
         references = result.get("references", [])
         for item in references:
             item.pop("snippet", None)
 
-        return {
-            "success": True,
-            "data": {
+        return WorkerResult(
+            task_id=task.task_id,
+            success=True,
+            data={
                 "query": query,
                 "count": len(references),
                 "references": references,
             },
-        }
-    except httpx.TimeoutException:
-        return {"success": False, "error": "搜索超时"}
-    except Exception as e:
-        return {"success": False, "error": f"搜索失败: {e}"}
+        )
 
 
 def _build_time_filter(freshness: str | None) -> dict:

@@ -14,7 +14,7 @@ pydantic = "^2.10"
 pydantic-settings = "^2.7"
 pydantic-ai = "^0.1"
 litellm = "^1.55"
-langfuse = "^2.55"
+langfuse = "^4.0"
 e2b = "^1.2"
 e2b-code-interpreter = "^1.1"
 redis = {extras = ["hiredis"], version = "^5.2"}

@@ -34,6 +34,7 @@ _WORKER_REGISTRY: dict[str, tuple[str, str]] = {
     # "rag_worker": ("src_deepagent.workers.native.rag_worker", "RAGWorker"),  # TODO: 缺少 embedding 环节，暂不可用
     "db_query_worker": ("src_deepagent.workers.native.db_query_worker", "DBQueryWorker"),
     "api_call_worker": ("src_deepagent.workers.native.api_call_worker", "APICallWorker"),
+    "web_search_worker": ("src_deepagent.workers.native.web_search_worker", "WebSearchWorker"),
 }
 
 
@@ -311,10 +312,10 @@ async def _execute_plan(
     message_history: list[Any] | None = None,
 ) -> Any:
     """执行单次编排计划，流式推送 A2UI 事件，返回 agent result"""
-    import uuid as _uuid
     from pydantic_ai._agent_graph import CallToolsNode, ModelRequestNode, End
     from pydantic_ai.usage import UsageLimits
     from src_deepagent.orchestrator.reasoning_engine import ExecutionMode
+    from src_deepagent.monitoring.langfuse_tracer import trace_span, update_current_span
 
     # 注入 publish 回调到 base_tools，让 emit_chart 直接推送 render_widget
     from src_deepagent.capabilities.base_tools import set_publish_fn
@@ -337,188 +338,197 @@ async def _execute_plan(
     effective_query = plan.prompt_prefix + request.query
     _ctx = {"session_id": session_id, "trace_id": trace_id}
 
-    try:
-        iter_kwargs: dict = {
-            "deps": deps,
-            "message_history": message_history or None,
-            "usage_limits": UsageLimits(request_limit=15), # 单次 Agent 运行最多向LLM发起的请求次数
-        }
+    with trace_span(
+        name="agent_query",
+        as_type="agent",
+        input={"query": request.query, "mode": str(plan.mode)},
+        metadata={"session_id": session_id, "trace_id": trace_id, "mode": str(plan.mode)},
+    ) as _trace:
 
-        # Claude 模型按模式决定是否开启 extended thinking
         try:
-            from pydantic_ai.models.anthropic import AnthropicModelSettings
-            from anthropic.types.beta import BetaThinkingConfigEnabledParam
-            _MAX_TOKENS = {
-                ExecutionMode.DIRECT: 4000,
-                ExecutionMode.AUTO: 8000,
-                ExecutionMode.PLAN_AND_EXECUTE: 16000,
-                ExecutionMode.SUB_AGENT: 16000,
+            iter_kwargs: dict = {
+                "deps": deps,
+                "message_history": message_history or None,
+                "usage_limits": UsageLimits(request_limit=15), # 单次 Agent 运行最多向LLM发起的请求次数
             }
-            max_tokens = _MAX_TOKENS.get(plan.mode, 8000)
-            if plan.mode != ExecutionMode.DIRECT:
-                iter_kwargs["model_settings"] = AnthropicModelSettings(
-                    anthropic_thinking=BetaThinkingConfigEnabledParam(
-                        type="enabled",
-                        budget_tokens=max(1024, max_tokens // 4),
-                    ),
-                    max_tokens=max_tokens,
-                )
-            else:
-                iter_kwargs["model_settings"] = AnthropicModelSettings(
-                    max_tokens=max_tokens,
-                )
-        except Exception:
-            pass
 
-        async with agent.iter(effective_query, **iter_kwargs) as run:
-            pending_tool_calls: list[str] = []  # 待推送结果的工具名
-            reported_tool_ids: set[str] = set()  # 已推送过的 tool_call_id
+            # Claude 模型按模式决定是否开启 extended thinking
+            try:
+                from pydantic_ai.models.anthropic import AnthropicModelSettings
+                from anthropic.types.beta import BetaThinkingConfigEnabledParam
+                _MAX_TOKENS = {
+                    ExecutionMode.DIRECT: 4000,
+                    ExecutionMode.AUTO: 8000,
+                    ExecutionMode.PLAN_AND_EXECUTE: 16000,
+                    ExecutionMode.SUB_AGENT: 16000,
+                }
+                max_tokens = _MAX_TOKENS.get(plan.mode, 8000)
+                if plan.mode != ExecutionMode.DIRECT:
+                    iter_kwargs["model_settings"] = AnthropicModelSettings(
+                        anthropic_thinking=BetaThinkingConfigEnabledParam(
+                            type="enabled",
+                            budget_tokens=max(1024, max_tokens // 4),
+                        ),
+                        max_tokens=max_tokens,
+                    )
+                else:
+                    iter_kwargs["model_settings"] = AnthropicModelSettings(
+                        max_tokens=max_tokens,
+                    )
+            except Exception:
+                pass
 
-            async for node in run:
-                # 如果有待推送的 tool_result，从消息历史提取
-                if pending_tool_calls:
-                    logger.info(f"[DEBUG] pending_tool_calls={pending_tool_calls} node_type={type(node).__name__}")
-                    await _flush_pending_tool_results(run, pending_tool_calls, reported_tool_ids, session_id, _ctx)
-                    pending_tool_calls.clear()
+            async with agent.iter(effective_query, **iter_kwargs) as run:
+                pending_tool_calls: list[str] = []  # 待推送结果的工具名
+                reported_tool_ids: set[str] = set()  # 已推送过的 tool_call_id
 
-                if isinstance(node, CallToolsNode):
-                    # 先推送 thinking 事件
-                    for part in node.model_response.parts:
-                        if getattr(part, "part_kind", "") == "thinking" and hasattr(part, "content") and part.content:
-                            await _publish(session_id, {
-                                "event_type": "thinking",
-                                "content": part.content,
-                                **_ctx,
-                            })
-                    # 推送 tool_call 事件（调用前）
-                    for part in node.model_response.parts:
-                        if hasattr(part, "tool_name"):
-                            tool_name = part.tool_name
-                            pending_tool_calls.append(tool_name)
-                            # call_mcp_tool 显示实际 MCP 工具名
-                            display_name = tool_name
-                            if tool_name == "call_mcp_tool" and hasattr(part, "args"):
-                                try:
-                                    import json as _json
-                                    args = part.args
-                                    if isinstance(args, str):
-                                        args = _json.loads(args)
-                                    if isinstance(args, dict):
-                                        mcp_tool = args.get("tool_name", "")
-                                        if mcp_tool:
-                                            display_name = f"call_mcp_tool({mcp_tool})"
-                                except Exception:
-                                    pass
-                            await _publish(session_id, {
-                                "event_type": "tool_call",
-                                "tool_name": tool_name,
-                                "display_name": display_name,
-                                "tool_type": _infer_tool_type(tool_name),
-                                "args": str(part.args)[:200] if hasattr(part, "args") else "",
-                                **_ctx,
-                            })
+                async for node in run:
+                    # 如果有待推送的 tool_result，从消息历史提取
+                    if pending_tool_calls:
+                        logger.info(f"[DEBUG] pending_tool_calls={pending_tool_calls} node_type={type(node).__name__}")
+                        await _flush_pending_tool_results(run, pending_tool_calls, reported_tool_ids, session_id, _ctx)
+                        pending_tool_calls.clear()
 
-                elif isinstance(node, ModelRequestNode):
-                    # 从 model_response 提取文本，推送 text_stream
-                    if hasattr(node, "model_response") and node.model_response:
-                        part_kinds = [getattr(p, "part_kind", "?") for p in node.model_response.parts]
-                        logger.info(f"[DEBUG] ModelRequestNode parts | kinds={part_kinds}")
+                    if isinstance(node, CallToolsNode):
+                        # 先推送 thinking 事件
                         for part in node.model_response.parts:
-                            part_kind = getattr(part, "part_kind", "")
-                            # 思考过程
-                            if part_kind == "thinking" and hasattr(part, "content") and part.content:
+                            if getattr(part, "part_kind", "") == "thinking" and hasattr(part, "content") and part.content:
                                 await _publish(session_id, {
                                     "event_type": "thinking",
                                     "content": part.content,
                                     **_ctx,
                                 })
-                            # 文本输出
-                            elif hasattr(part, "content") and isinstance(part.content, str) and part.content:
+                        # 推送 tool_call 事件（调用前）
+                        for part in node.model_response.parts:
+                            if hasattr(part, "tool_name"):
+                                tool_name = part.tool_name
+                                pending_tool_calls.append(tool_name)
+                                # call_mcp_tool 显示实际 MCP 工具名
+                                display_name = tool_name
+                                if tool_name == "call_mcp_tool" and hasattr(part, "args"):
+                                    try:
+                                        import json as _json
+                                        args = part.args
+                                        if isinstance(args, str):
+                                            args = _json.loads(args)
+                                        if isinstance(args, dict):
+                                            mcp_tool = args.get("tool_name", "")
+                                            if mcp_tool:
+                                                display_name = f"call_mcp_tool({mcp_tool})"
+                                    except Exception:
+                                        pass
                                 await _publish(session_id, {
-                                    "event_type": "text_stream",
-                                    "delta": part.content,
-                                    "is_final": False,
+                                    "event_type": "tool_call",
+                                    "tool_name": tool_name,
+                                    "display_name": display_name,
+                                    "tool_type": _infer_tool_type(tool_name),
+                                    "args": str(part.args)[:200] if hasattr(part, "args") else "",
                                     **_ctx,
                                 })
 
-                elif isinstance(node, End):
-                    # 提取最后一轮 LLM 的 thinking（最终回答前的思考）
-                    try:
-                        for msg in reversed(run.all_messages()):
-                            if not hasattr(msg, "parts"):
-                                continue
-                            for part in msg.parts:
-                                if getattr(part, "part_kind", "") == "thinking" and hasattr(part, "content") and part.content:
+                    elif isinstance(node, ModelRequestNode):
+                        # 从 model_response 提取文本，推送 text_stream
+                        if hasattr(node, "model_response") and node.model_response:
+                            part_kinds = [getattr(p, "part_kind", "?") for p in node.model_response.parts]
+                            logger.info(f"[DEBUG] ModelRequestNode parts | kinds={part_kinds}")
+                            for part in node.model_response.parts:
+                                part_kind = getattr(part, "part_kind", "")
+                                # 思考过程
+                                if part_kind == "thinking" and hasattr(part, "content") and part.content:
                                     await _publish(session_id, {
                                         "event_type": "thinking",
                                         "content": part.content,
                                         **_ctx,
                                     })
-                            break  # 只取最后一条消息的 thinking
-                    except Exception:
-                        pass
+                                # 文本输出
+                                elif hasattr(part, "content") and isinstance(part.content, str) and part.content:
+                                    await _publish(session_id, {
+                                        "event_type": "text_stream",
+                                        "delta": part.content,
+                                        "is_final": False,
+                                        **_ctx,
+                                    })
 
-                    # End 前先处理最后一批 pending tool_result
-                    if pending_tool_calls:
-                        await _flush_pending_tool_results(run, pending_tool_calls, reported_tool_ids, session_id, _ctx)
+                    elif isinstance(node, End):
+                        # 提取最后一轮 LLM 的 thinking（最终回答前的思考）
+                        try:
+                            for msg in reversed(run.all_messages()):
+                                if not hasattr(msg, "parts"):
+                                    continue
+                                for part in msg.parts:
+                                    if getattr(part, "part_kind", "") == "thinking" and hasattr(part, "content") and part.content:
+                                        await _publish(session_id, {
+                                            "event_type": "thinking",
+                                            "content": part.content,
+                                            **_ctx,
+                                        })
+                                break  # 只取最后一条消息的 thinking
+                        except Exception:
+                            pass
 
-                        # 兜底：对还没被报告的 pending tool_call 推送成功状态
-                        # （覆盖 pydantic-deep 内置工具如 update_todo_status、write_todos）
-                        for pending_name in pending_tool_calls:
-                            await _publish(session_id, {
-                                "event_type": "tool_result",
-                                "tool_name": pending_name,
-                                "tool_type": _infer_tool_type(pending_name),
-                                "status": "success",
-                                "content": "",
-                                **_ctx,
-                            })
+                        # End 前先处理最后一批 pending tool_result
+                        if pending_tool_calls:
+                            await _flush_pending_tool_results(run, pending_tool_calls, reported_tool_ids, session_id, _ctx)
 
-                        pending_tool_calls.clear()
+                            # 兜底：对还没被报告的 pending tool_call 推送成功状态
+                            # （覆盖 pydantic-deep 内置工具如 update_todo_status、write_todos）
+                            for pending_name in pending_tool_calls:
+                                await _publish(session_id, {
+                                    "event_type": "tool_result",
+                                    "tool_name": pending_name,
+                                    "tool_type": _infer_tool_type(pending_name),
+                                    "status": "success",
+                                    "content": "",
+                                    **_ctx,
+                                })
 
-                    # 流结束标记
+                            pending_tool_calls.clear()
+
+                        # 流结束标记
+                        await _publish(session_id, {
+                            "event_type": "text_stream",
+                            "delta": "",
+                            "is_final": True,
+                            **_ctx,
+                        })
+                        break
+
+                result = run.result
+                update_current_span(output={"result_type": type(result.output).__name__})
+
+        except Exception as e:
+            update_current_span(level="ERROR", status_message=str(e)[:500])
+            # 超限降级：从消息历史提取最后文本
+            if "usage_limit" in str(e).lower() or "request_limit" in str(e).lower():
+                logger.warning(f"请求次数超限，尝试提取已有结果 | session_id={session_id}")
+                last_text = _extract_last_text(run) if "run" in dir() else ""
+                if last_text:
+                    # 推送提取到的文本
                     await _publish(session_id, {
                         "event_type": "text_stream",
-                        "delta": "",
+                        "delta": last_text,
                         "is_final": True,
                         **_ctx,
                     })
-                    break
-
-            result = run.result
-
-    except Exception as e:
-        # 超限降级：从消息历史提取最后文本
-        if "usage_limit" in str(e).lower() or "request_limit" in str(e).lower():
-            logger.warning(f"请求次数超限，尝试提取已有结果 | session_id={session_id}")
-            last_text = _extract_last_text(run) if "run" in dir() else ""
-            if last_text:
-                # 推送提取到的文本
-                await _publish(session_id, {
-                    "event_type": "text_stream",
-                    "delta": last_text,
-                    "is_final": True,
-                    **_ctx,
-                })
-                from types import SimpleNamespace
-                result = SimpleNamespace(output=last_text)
+                    from types import SimpleNamespace
+                    result = SimpleNamespace(output=last_text)
+                else:
+                    await _publish(session_id, {
+                        "event_type": "session_failed",
+                        "error": f"请求次数超限且无可用结果: {e}",
+                        **_ctx,
+                    })
+                    raise
             else:
-                await _publish(session_id, {
-                    "event_type": "session_failed",
-                    "error": f"请求次数超限且无可用结果: {e}",
-                    **_ctx,
-                })
                 raise
-        else:
-            raise
 
-    logger.info(
-        f"结果提取 | session_id={session_id} "
-        f"output_type={type(result.output).__name__} "
-        f"output_preview={str(result.output)[:300]}"
-    )
+        logger.info(
+            f"结果提取 | session_id={session_id} "
+            f"output_type={type(result.output).__name__} "
+            f"output_preview={str(result.output)[:300]}"
+        )
 
-    return result
+        return result
 
 
 async def _run_orchestration(

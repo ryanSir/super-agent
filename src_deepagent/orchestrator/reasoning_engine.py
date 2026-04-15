@@ -525,63 +525,88 @@ class ReasoningEngine:
             '请只返回 JSON：{"mode": "direct|auto|plan_and_execute|sub_agent", "reason": "一句话理由"}'
         )
 
-        try:
-            from pydantic_ai import Agent
-            from pydantic_ai.settings import ModelSettings
+        from pydantic_ai import Agent
+        from pydantic_ai.settings import ModelSettings
+        from src_deepagent.monitoring.langfuse_tracer import trace_span, update_current_span
 
-            classifier = Agent(
-                model=get_model("classifier"),
-                output_type=str,
-                instructions="你是任务路由器，只返回 JSON，不要其他内容。",
-                name="ModeClassifier",
-            )
+        classifier = Agent(
+            model=get_model("classifier"),
+            output_type=str,
+            instructions="你是任务路由器，只返回 JSON，不要其他内容。",
+            name="ModeClassifier",
+        )
 
-            result = await asyncio.wait_for(
-                classifier.run(
-                    prompt,
-                    model_settings=ModelSettings(temperature=0.0),
-                ),
-                timeout=timeout,
-            )
-
-            raw = result.output if hasattr(result, "output") else str(result)
-            raw = raw.strip()
-            if raw.startswith("```"):
-                raw = raw.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
-
-            parsed = json.loads(raw)
-            mode_str = parsed["mode"].strip().lower()
-            reason = parsed.get("reason", "")
-
+        with trace_span(
+            name="reasoning_classify",
+            input={"query": query[:500]},
+            metadata={"timeout": timeout},
+        ) as _span:
             try:
-                llm_mode = ExecutionMode(mode_str)
-            except ValueError:
+                result = await asyncio.wait_for(
+                    classifier.run(
+                        prompt,
+                        model_settings=ModelSettings(temperature=0.0),
+                    ),
+                    timeout=timeout,
+                )
+
+                raw = result.output if hasattr(result, "output") else str(result)
+                raw = raw.strip()
+                if raw.startswith("```"):
+                    raw = raw.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+
+                parsed = json.loads(raw)
+                mode_str = parsed["mode"].strip().lower()
+                reason = parsed.get("reason", "")
+
+                try:
+                    llm_mode = ExecutionMode(mode_str)
+                except ValueError:
+                    logger.warning(
+                        f"[ReasoningEngine] LLM 返回无效模式: {mode_str}"
+                    )
+                    update_current_span(
+                        output={"error": f"invalid mode: {mode_str}"},
+                        level="WARNING",
+                    )
+                    return None
+
+                logger.info(
+                    f"[ReasoningEngine] LLM 主分类完成 | "
+                    f"mode={llm_mode.value} reason={reason}"
+                )
+                update_current_span(
+                    output={"mode": llm_mode.value, "reason": reason},
+                )
+                return llm_mode
+
+            except asyncio.TimeoutError:
                 logger.warning(
-                    f"[ReasoningEngine] LLM 返回无效模式: {mode_str}"
+                    f"[ReasoningEngine] LLM 主分类超时({timeout}s)，降级到规则评估"
+                )
+                update_current_span(
+                    level="ERROR",
+                    status_message=f"timeout after {timeout}s",
                 )
                 return None
-
-            logger.info(
-                f"[ReasoningEngine] LLM 主分类完成 | "
-                f"mode={llm_mode.value} reason={reason}"
-            )
-            return llm_mode
-
-        except asyncio.TimeoutError:
-            logger.warning(
-                f"[ReasoningEngine] LLM 主分类超时({timeout}s)，降级到规则评估"
-            )
-            return None
-        except (json.JSONDecodeError, KeyError, ValueError) as e:
-            logger.warning(
-                f"[ReasoningEngine] LLM 主分类解析失败 | error={e}"
-            )
-            return None
-        except Exception as e:
-            logger.warning(
-                f"[ReasoningEngine] LLM 主分类异常 | error={e}"
-            )
-            return None
+            except (json.JSONDecodeError, KeyError, ValueError) as e:
+                logger.warning(
+                    f"[ReasoningEngine] LLM 主分类解析失败 | error={e}"
+                )
+                update_current_span(
+                    level="ERROR",
+                    status_message=f"parse error: {e}",
+                )
+                return None
+            except Exception as e:
+                logger.warning(
+                    f"[ReasoningEngine] LLM 主分类异常 | error={e}"
+                )
+                update_current_span(
+                    level="ERROR",
+                    status_message=str(e)[:500],
+                )
+                return None
 
     # ── 资源获取 ──────────────────────────────────────────
 

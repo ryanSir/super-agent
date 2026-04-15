@@ -456,12 +456,18 @@ def create_base_tools(workers: dict[str, Any]) -> list[Callable]:
                 - "py" 过去一年
                 - "2024-01-01to2024-06-01" 自定义范围
         """
-        from src_deepagent.config.settings import get_settings
-        from src_deepagent.workers.native.web_search_worker import web_search as _search
+        worker = workers.get("web_search_worker")
+        if not worker:
+            return {"success": False, "error": "WebSearchWorker 不可用"}
 
         logger.info(f"百度搜索 | query={query} count={count} freshness={freshness}")
-        api_key = get_settings().llm.baidu_api_key
-        return await _search(api_key, query, count, freshness)
+        task = TaskNode(
+            task_id=f"search-{uuid.uuid4().hex[:8]}",
+            task_type=TaskType.API_CALL,
+            input_data={"query": query, "count": count, "freshness": freshness},
+        )
+        result = await worker.execute(task)
+        return result.model_dump() if hasattr(result, "model_dump") else result
 
     async def create_skill(
         ctx: RunContext[Any],
@@ -520,35 +526,64 @@ def create_base_tools(workers: dict[str, Any]) -> list[Callable]:
 
 
 def _wrap_with_tool_result(fn: Callable) -> Callable:
-    """包装工具函数，执行完自动推送 tool_result 事件（使用 ContextVar，并发安全）"""
+    """包装工具函数，执行完自动推送 tool_result 事件（使用 ContextVar，并发安全）+ Langfuse Span"""
     import functools
     import asyncio
+    from src_deepagent.monitoring.langfuse_tracer import trace_span, update_current_span
 
     @functools.wraps(fn)
     async def wrapper(*args, **kwargs):
-        result = await fn(*args, **kwargs)
+        tool_name = fn.__name__
 
-        publish_fn = _publish_fn_var.get()
-        if publish_fn:
+        with trace_span(
+            name=f"tool_{tool_name}",
+            as_type="tool",
+            input={"args": str(kwargs)[:500] if kwargs else str(args[1:])[:500]},
+            metadata={"tool_type": _infer_tool_type_local(tool_name)},
+        ) as _span:
             try:
-                tool_name = fn.__name__
-                if isinstance(result, dict):
-                    status = "success" if result.get("success", True) else "failed"
-                    content = str(result.get("data", result.get("error", "")))
-                else:
-                    status = "success"
-                    content = str(result)
-                asyncio.ensure_future(publish_fn({
-                    "event_type": "tool_result",
-                    "tool_name": tool_name,
-                    "tool_type": _infer_tool_type_local(tool_name),
-                    "status": status,
-                    "content": content,
-                }))
-            except Exception:
-                pass
+                result = await fn(*args, **kwargs)
+            except Exception as e:
+                update_current_span(
+                    level="ERROR",
+                    status_message=str(e)[:500],
+                )
+                raise
 
-        return result
+            # 更新 Span 输出
+            if isinstance(result, dict):
+                status = "success" if result.get("success", True) else "failed"
+                if status == "failed":
+                    update_current_span(
+                        output=result,
+                        level="ERROR",
+                        status_message=str(result.get("error", ""))[:500],
+                    )
+                else:
+                    update_current_span(output=result)
+            else:
+                update_current_span(output={"result": str(result)[:500]})
+
+            # 推送 tool_result 事件
+            publish_fn = _publish_fn_var.get()
+            if publish_fn:
+                try:
+                    if isinstance(result, dict):
+                        content = str(result.get("data", result.get("error", "")))
+                    else:
+                        status = "success"
+                        content = str(result)
+                    asyncio.ensure_future(publish_fn({
+                        "event_type": "tool_result",
+                        "tool_name": tool_name,
+                        "tool_type": _infer_tool_type_local(tool_name),
+                        "status": status,
+                        "content": content,
+                    }))
+                except Exception:
+                    pass
+
+            return result
 
     return wrapper
 
