@@ -37,11 +37,21 @@ function DataWidget({
         }))
       : [{ data: seriesData, type: chartType }]
 
+    // 检测是否需要双 Y 轴
+    const needsDualYAxis =
+      chartType !== 'pie' &&
+      isMultiSeries &&
+      (seriesData as any[]).some((s: any) => s.yAxisIndex === 1)
+
     return {
       title: title ? { text: title, left: 'center' } : undefined,
       tooltip: { trigger: 'axis' },
       xAxis: chartType !== 'pie' ? { type: 'category', data: xAxis } : undefined,
-      yAxis: chartType !== 'pie' ? { type: 'value' } : undefined,
+      yAxis: chartType !== 'pie'
+        ? needsDualYAxis
+          ? [{ type: 'value' }, { type: 'value' }]
+          : { type: 'value' }
+        : undefined,
       series:
         chartType === 'pie'
           ? [
