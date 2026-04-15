@@ -223,133 +223,44 @@ def _extract_last_text_from_result(result: Any) -> str:
     return str(result.output)[:2000] if hasattr(result, "output") else ""
 
 
-# base_tools 中已被包装器覆盖的工具名（包装器会自动推送 tool_result）
-_WRAPPED_TOOL_NAMES = frozenset({
-    "execute_rag_search", "execute_db_query", "execute_api_call",
-    "execute_sandbox", "execute_skill", "search_skills", "create_skill",
-    "emit_chart", "recall_memory", "plan_and_decompose",
-    "tool_search", "call_mcp_tool", "baidu_search",
-})
-
-
-async def _handle_emit_chart_result(
-    part: Any,
-    session_id: str,
-    ctx: dict,
-) -> None:
-    """处理 emit_chart 工具结果，推送 render_widget 事件"""
-    import uuid as _uuid
-    try:
-        import json as _json
-        raw = part.content if hasattr(part, "content") else None
-        if isinstance(raw, str):
-            raw = _json.loads(raw)
-        if isinstance(raw, dict) and raw.get("success"):
-            data = raw.get("data", {})
-            await _publish(session_id, {
-                "event_type": "render_widget",
-                "widget_id": data.get("widget_id", f"chart-{_uuid.uuid4().hex[:8]}"),
-                "ui_component": data.get("ui_component", "DataChart"),
-                "props": data.get("props", {}),
-                **ctx,
-            })
-    except Exception as chart_err:
-        logger.warning(f"emit_chart render_widget 推送失败 | error={chart_err}")
-
-
-async def _flush_pending_tool_results(
-    run: Any,
-    pending_tool_calls: list[str],
-    reported_tool_ids: set[str],
-    session_id: str,
-    ctx: dict,
-) -> None:
-    """从消息历史提取 tool-return，清理 pending 列表
-
-    base_tools 包装器已覆盖的工具：tool_result 由包装器推送，此处只清理 pending。
-    pydantic-deep 内置工具（write_todos 等）：包装器未覆盖，需要在此推送 tool_result。
-    """
-    reported_names: list[str] = []
-    try:
-        all_msgs = run.all_messages()
-        logger.info(f"[DEBUG _flush] pending={pending_tool_calls} total_msgs={len(all_msgs)} reported_ids_count={len(reported_tool_ids)}")
-        for msg_idx, msg in enumerate(reversed(all_msgs)):
-            if not hasattr(msg, "parts"):
-                continue
-            for part in msg.parts:
-                if getattr(part, "part_kind", None) != "tool-return":
-                    continue
-                tcid = getattr(part, "tool_call_id", None)
-                tool_name = getattr(part, "tool_name", "")
-                content_preview = str(getattr(part, "content", ""))[:100]
-                logger.info(f"[DEBUG _flush] found tool-return | name={tool_name} tcid={tcid} content={content_preview}")
-                if not tcid:
-                    tcid = f"_part_{id(part)}"
-                if tcid in reported_tool_ids:
-                    logger.info(f"[DEBUG _flush] SKIPPED (already reported) | tcid={tcid}")
-                    continue
-                reported_tool_ids.add(tcid)
-                reported_names.append(tool_name)
-
-                # 非包装器覆盖的工具（pydantic-deep 内置），需要在此推送 tool_result
-                if tool_name not in _WRAPPED_TOOL_NAMES:
-                    content = str(part.content) if hasattr(part, "content") else ""
-                    await _publish(session_id, {
-                        "event_type": "tool_result",
-                        "tool_name": tool_name,
-                        "tool_type": _infer_tool_type(tool_name),
-                        "status": getattr(part, "outcome", "success"),
-                        "content": content,
-                        **ctx,
-                    })
-    except Exception as e:
-        logger.warning(f"tool_result 提取失败 | error={e}")
-
-    # 从 pending_tool_calls 中移除已找到 tool-return 的工具名
-    for name in reported_names:
-        if name in pending_tool_calls:
-            pending_tool_calls.remove(name)
-
-
-async def _execute_plan(
-    plan: Any,
+async def _run_agent(
+    decision: Any,
     request: QueryRequest,
     session_id: str,
     trace_id: str,
     message_history: list[Any] | None = None,
 ) -> Any:
-    """执行单次编排计划，流式推送 A2UI 事件，返回 agent result"""
-    from pydantic_ai._agent_graph import CallToolsNode, ModelRequestNode, End
+    """根据推理决策创建并运行 Agent，流式推送 A2UI 事件，返回 agent result"""
+    from pydantic_ai._agent_graph import End
     from pydantic_ai.usage import UsageLimits
     from src_deepagent.orchestrator.reasoning_engine import ExecutionMode
     from src_deepagent.monitoring.langfuse_tracer import trace_span, update_current_span
 
-    # 注入 publish 回调到 base_tools，让 emit_chart 直接推送 render_widget
-    from src_deepagent.capabilities.base_tools import set_publish_fn
-    set_publish_fn(lambda event: _publish(session_id, {**event, "session_id": session_id, "trace_id": trace_id}))
-
     # 只有 AUTO 和 SUB_AGENT 模式才需要 Sub-Agent 配置
-    if plan.mode in (ExecutionMode.AUTO, ExecutionMode.SUB_AGENT):
-        sub_agent_configs = create_sub_agent_configs(plan.resources.agent_tools)
+    if decision.mode in (ExecutionMode.AUTO, ExecutionMode.SUB_AGENT):
+        sub_agent_configs = create_sub_agent_configs(
+            agent_tools=decision.resources.agent_tools,
+            mcp_toolsets=decision.resources.mcp_toolsets,
+        )
     else:
         sub_agent_configs = []
 
     agent, deps = create_orchestrator_agent(
-        plan=plan,
+        plan=decision,
         sub_agent_configs=sub_agent_configs,
         session_id=session_id,
         trace_id=trace_id,
         publish_fn=lambda event: _publish(session_id, {**event, "session_id": session_id, "trace_id": trace_id}),
     )
 
-    effective_query = plan.prompt_prefix + request.query
+    effective_query = decision.prompt_prefix + request.query
     _ctx = {"session_id": session_id, "trace_id": trace_id}
 
     with trace_span(
         name="agent_query",
         as_type="agent",
-        input={"query": request.query, "mode": str(plan.mode)},
-        metadata={"session_id": session_id, "trace_id": trace_id, "mode": str(plan.mode)},
+        input={"query": request.query, "mode": str(decision.mode)},
+        metadata={"session_id": session_id, "trace_id": trace_id, "mode": str(decision.mode)},
     ) as _trace:
 
         try:
@@ -369,8 +280,8 @@ async def _execute_plan(
                     ExecutionMode.PLAN_AND_EXECUTE: 16000,
                     ExecutionMode.SUB_AGENT: 16000,
                 }
-                max_tokens = _MAX_TOKENS.get(plan.mode, 8000)
-                if plan.mode != ExecutionMode.DIRECT:
+                max_tokens = _MAX_TOKENS.get(decision.mode, 8000)
+                if decision.mode != ExecutionMode.DIRECT:
                     iter_kwargs["model_settings"] = AnthropicModelSettings(
                         anthropic_thinking=BetaThinkingConfigEnabledParam(
                             type="enabled",
@@ -393,138 +304,8 @@ async def _execute_plan(
                 pass
 
             async with agent.iter(effective_query, **iter_kwargs) as run:
-                pending_tool_calls: list[str] = []  # 待推送结果的工具名
-                reported_tool_ids: set[str] = set()  # 已推送过的 tool_call_id
-
                 async for node in run:
-                    # 如果有待推送的 tool_result，从消息历史提取
-                    if pending_tool_calls:
-                        logger.info(f"[DEBUG] pending_tool_calls={pending_tool_calls} node_type={type(node).__name__}")
-                        await _flush_pending_tool_results(run, pending_tool_calls, reported_tool_ids, session_id, _ctx)
-                        # 只清除已被包装器覆盖的工具（它们的 tool_result 由包装器推送）
-                        # 未被 flush 找到的非包装工具保留在 pending 中，等下次 flush 或 End 兜底
-                        pending_tool_calls[:] = [
-                            name for name in pending_tool_calls
-                            if name not in _WRAPPED_TOOL_NAMES
-                        ]
-
-                    if isinstance(node, CallToolsNode):
-                        # 先推送 thinking 事件
-                        for part in node.model_response.parts:
-                            if getattr(part, "part_kind", "") == "thinking" and hasattr(part, "content") and part.content:
-                                await _publish(session_id, {
-                                    "event_type": "thinking",
-                                    "content": part.content,
-                                    **_ctx,
-                                })
-                        # 推送 tool_call 事件（调用前）
-                        for part in node.model_response.parts:
-                            if hasattr(part, "tool_name"):
-                                tool_name = part.tool_name
-                                pending_tool_calls.append(tool_name)
-                                # call_mcp_tool 显示实际 MCP 工具名
-                                display_name = tool_name
-                                if tool_name == "call_mcp_tool" and hasattr(part, "args"):
-                                    try:
-                                        import json as _json
-                                        args = part.args
-                                        if isinstance(args, str):
-                                            args = _json.loads(args)
-                                        if isinstance(args, dict):
-                                            mcp_tool = args.get("tool_name", "")
-                                            if mcp_tool:
-                                                display_name = f"call_mcp_tool({mcp_tool})"
-                                    except Exception:
-                                        pass
-                                await _publish(session_id, {
-                                    "event_type": "tool_call",
-                                    "tool_name": tool_name,
-                                    "display_name": display_name,
-                                    "tool_type": _infer_tool_type(tool_name),
-                                    "args": str(part.args)[:200] if hasattr(part, "args") else "",
-                                    **_ctx,
-                                })
-
-                    elif isinstance(node, ModelRequestNode):
-                        # 从 model_response 提取文本，推送 text_stream
-                        if hasattr(node, "model_response") and node.model_response:
-                            part_kinds = [getattr(p, "part_kind", "?") for p in node.model_response.parts]
-                            logger.info(f"[DEBUG] ModelRequestNode parts | kinds={part_kinds}")
-                            for part in node.model_response.parts:
-                                part_kind = getattr(part, "part_kind", "")
-                                # 思考过程
-                                if part_kind == "thinking" and hasattr(part, "content") and part.content:
-                                    await _publish(session_id, {
-                                        "event_type": "thinking",
-                                        "content": part.content,
-                                        **_ctx,
-                                    })
-                                # 文本输出
-                                elif hasattr(part, "content") and isinstance(part.content, str) and part.content:
-                                    await _publish(session_id, {
-                                        "event_type": "text_stream",
-                                        "delta": part.content,
-                                        "is_final": False,
-                                        **_ctx,
-                                    })
-
-                    elif isinstance(node, End):
-                        # 提取最后一轮 LLM 的 thinking（最终回答前的思考）
-                        try:
-                            for msg in reversed(run.all_messages()):
-                                if not hasattr(msg, "parts"):
-                                    continue
-                                for part in msg.parts:
-                                    if getattr(part, "part_kind", "") == "thinking" and hasattr(part, "content") and part.content:
-                                        await _publish(session_id, {
-                                            "event_type": "thinking",
-                                            "content": part.content,
-                                            **_ctx,
-                                        })
-                                break  # 只取最后一条消息的 thinking
-                        except Exception:
-                            pass
-
-                        # End 前先处理最后一批 pending tool_result
-                        if pending_tool_calls:
-                            await _flush_pending_tool_results(run, pending_tool_calls, reported_tool_ids, session_id, _ctx)
-
-                            # 兜底：对还没被报告的 pending tool_call，尝试从消息历史提取内容
-                            for pending_name in pending_tool_calls:
-                                # 尝试从消息历史找到最后一条匹配的 tool-return
-                                fallback_content = ""
-                                try:
-                                    for msg in reversed(run.all_messages()):
-                                        if not hasattr(msg, "parts"):
-                                            continue
-                                        for part in msg.parts:
-                                            if (getattr(part, "part_kind", None) == "tool-return"
-                                                    and getattr(part, "tool_name", "") == pending_name):
-                                                fallback_content = str(part.content) if hasattr(part, "content") else ""
-                                                break
-                                        if fallback_content:
-                                            break
-                                except Exception:
-                                    pass
-
-                                await _publish(session_id, {
-                                    "event_type": "tool_result",
-                                    "tool_name": pending_name,
-                                    "tool_type": _infer_tool_type(pending_name),
-                                    "status": "success",
-                                    "content": fallback_content,
-                                    **_ctx,
-                                })
-
-                            pending_tool_calls.clear()
-
-                        # 流结束标记
-                        await _publish(session_id, {
-                            "event_type": "text_stream",
-                            "delta": "",
-                            "is_final": True,
-                            **_ctx,
-                        })
+                    if isinstance(node, End):
                         break
 
                 result = run.result
@@ -590,13 +371,13 @@ async def _run_orchestration(
         })
 
         # Stage 1: Reason
-        plan = await _reasoning_engine.decide(request.query, request.mode)
+        decision = await _reasoning_engine.decide(request.query, request.mode)
 
         await _publish(session_id, {
             "event_type": "process_update",
             "phase": "planning",
             "status": "completed",
-            "message": f"规划完成 | mode={plan.mode.value}",
+            "message": f"规划完成 | mode={decision.mode.value}",
             "session_id": session_id,
             "trace_id": trace_id,
         })
@@ -618,7 +399,7 @@ async def _run_orchestration(
             message_history = await _session_manager.load_messages(session_id)
 
         # Stage 2: Execute
-        result = await _execute_plan(plan, request, session_id, trace_id, message_history)
+        result = await _run_agent(decision, request, session_id, trace_id, message_history)
 
         # 保存对话历史
         if _session_manager and hasattr(result, "all_messages"):
@@ -670,7 +451,7 @@ async def _run_orchestration(
         if _session_manager:
             await _session_manager.update_status(session_id, SessionStatus.COMPLETED)
 
-        logger.info(f"编排完成 | session_id={session_id} mode={plan.mode.value}")
+        logger.info(f"编排完成 | session_id={session_id} mode={decision.mode.value}")
 
     except Exception as e:
         import traceback
@@ -684,38 +465,3 @@ async def _publish(session_id: str, event: dict[str, Any]) -> None:
     """发布事件到 Redis Stream"""
     if _stream_adapter:
         await _stream_adapter.publish(session_id, event)
-
-
-def _infer_tool_type(tool_name: str) -> str:
-    """根据工具名推断工具类型"""
-    _SANDBOX_TOOLS = {"execute_sandbox", "run_code", "execute_code"}
-    _NATIVE_TOOLS = {
-        "execute_rag_search", "execute_db_query", "execute_api_call",
-        "emit_chart", "recall_memory", "plan_and_decompose",
-        "tool_search", "search_skills", "create_skill", "baidu_search",
-    }
-    _MCP_PROXY_TOOLS = {"call_mcp_tool"}
-    _BUILTIN_TOOLS = {
-        "write_todos", "read_todos", "update_todo_status",
-        "task", "wait_task", "delegate_to_subagent",
-        "context_summary", "checkpoint", "restore_checkpoint",
-    }
-
-    if tool_name in _SANDBOX_TOOLS:
-        return "sandbox"
-    if tool_name in _NATIVE_TOOLS:
-        return "native_worker"
-    if tool_name in _MCP_PROXY_TOOLS:
-        return "mcp"
-    if tool_name == "execute_skill":
-        return "skill"
-    if tool_name in _BUILTIN_TOOLS:
-        return "builtin"
-    # skill 工具名与 skill name 一致，通过 registry 判断
-    try:
-        from src_deepagent.capabilities.skills.registry import skill_registry
-        if tool_name in skill_registry._skills:
-            return "skill"
-    except Exception:
-        pass
-    return "mcp"

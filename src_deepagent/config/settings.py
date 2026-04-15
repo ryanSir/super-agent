@@ -112,6 +112,24 @@ class ReasoningSettings(BaseSettings):
     model_config = {"env_prefix": "", "extra": "ignore", "env_file": ".env"}
 
 
+class HooksSettings(BaseSettings):
+    """Hooks & Capabilities 配置"""
+
+    # 循环检测
+    loop_window_size: int = Field(default=20, alias="LOOP_WINDOW_SIZE")
+    loop_warn_threshold: int = Field(default=3, alias="LOOP_WARN_THRESHOLD")
+    loop_hard_limit: int = Field(default=5, alias="LOOP_HARD_LIMIT")
+
+    # 功能开关
+    audit_enabled: bool = Field(default=True, alias="AUDIT_HOOKS_ENABLED")
+    event_publishing_enabled: bool = Field(default=True, alias="EVENT_PUBLISHING_ENABLED")
+
+    # 安全 — ToolGuard
+    blocked_tools: str = Field(default="", alias="BLOCKED_TOOLS")
+
+    model_config = {"env_prefix": "", "extra": "ignore", "env_file": ".env"}
+
+
 class AppSettings(BaseSettings):
     """应用全局配置"""
 
@@ -131,6 +149,7 @@ class AppSettings(BaseSettings):
     memory: MemorySettings = Field(default_factory=MemorySettings)
     mcp: MCPSettings = Field(default_factory=MCPSettings)
     reasoning: ReasoningSettings = Field(default_factory=ReasoningSettings)
+    hooks: HooksSettings = Field(default_factory=HooksSettings)
 
     model_config = {"env_prefix": "", "extra": "ignore", "env_file": ".env"}
 

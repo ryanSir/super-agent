@@ -1,14 +1,16 @@
-"""Base Tools — 10 个内置工具
+"""Base Tools — 内置工具（按职责分组）
 
 将 Workers、Skills、Memory 等底层服务包装为 Agent 可调用的工具函数。
 主 Agent 和 Sub-Agent 共享同一批工具实例。
+返回按职责分组的 dict，为后续 Toolset 化重构铺路。
+
+事件发布和 Langfuse tracing 由 EventPublishingCapability 统一处理。
 """
 
 from __future__ import annotations
 
 import json
 import uuid
-from contextvars import ContextVar
 from typing import Any, Callable
 
 from pydantic_ai import RunContext
@@ -20,23 +22,15 @@ from src_deepagent.capabilities.skills.registry import skill_registry
 
 logger = get_logger(__name__)
 
-# 每个 asyncio task 独立的事件发布回调，避免并发请求互相覆盖
-_publish_fn_var: ContextVar[Callable | None] = ContextVar("publish_fn", default=None)
 
-
-def set_publish_fn(fn: Callable) -> None:
-    """注入事件发布函数（由 rest_api 在编排时调用，每个请求 context 独立）"""
-    _publish_fn_var.set(fn)
-
-
-def create_base_tools(workers: dict[str, Any]) -> list[Callable]:
-    """将 Worker 实例包装为工具函数列表
+def create_base_tools(workers: dict[str, Any]) -> dict[str, list[Callable]]:
+    """将 Worker 实例包装为按职责分组的工具函数字典
 
     Args:
         workers: Worker 名称到实例的映射
 
     Returns:
-        Agent 可调用的工具函数列表
+        按职责分组的工具函数字典（native/sandbox/ui/memory/plan/skill_mgmt）
     """
 
     async def execute_rag_search(ctx: RunContext[Any], query: str, top_k: int = 5) -> dict[str, Any]:
@@ -150,19 +144,27 @@ def create_base_tools(workers: dict[str, Any]) -> list[Callable]:
         skill_name: str,
         params: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """执行已注册的 Skill（调用 Skill 的唯一正确方式）
+        """执行已注册的 Skill（仅限 sandbox 模式）
 
-        ⚠️ 注意：这是调用已注册 Skill 的唯一正确方式。
-        此工具会自动注入 Skill 所需的专属脚本文件；
-        若改用 execute_sandbox 直接执行，会因缺少这些文件而失败。
+        仅用于 execution: sandbox 的 Skill。Native 模式的 Skill 请使用
+        load_skill 加载后直接用 Base Tool 执行。
 
         Args:
-            skill_name: 技能名称（从 search_skills 结果中获取）
+            skill_name: 技能名称（从 list_skills 结果中获取）
             params: 技能参数
         """
         skill = skill_registry.get(skill_name)
         if not skill:
             return {"success": False, "error": f"技能 '{skill_name}' 未找到"}
+
+        # 模式检查：native skill 不走沙箱
+        if skill.metadata.execution == "native":
+            return {
+                "success": False,
+                "error": (
+                    f"技能 '{skill_name}' 为 native 模式，请使用 load_skill 加载后直接执行"
+                ),
+            }
 
         # Skill 通过沙箱执行
         sandbox_worker = workers.get("sandbox_worker")
@@ -243,31 +245,6 @@ def create_base_tools(workers: dict[str, Any]) -> list[Callable]:
         result = await sandbox_worker.execute(task)
         return result.model_dump()
 
-    async def search_skills(ctx: RunContext[Any], query: str) -> dict[str, Any]:
-        """搜索可用 Skills，用于在创建前检查是否已存在同名技能。
-
-        注意：调用 create_skill 成功后无需再次调用此工具验证，create_skill 返回值已包含完整信息。
-
-        Args:
-            query: 搜索关键词（支持英文名称或中文描述）
-        """
-        from src_deepagent.capabilities.skills.registry import skill_registry
-
-        results = skill_registry.search_skills(query)
-        return {
-            "success": True,
-            "data": [
-                {
-                    "name": s.metadata.name,
-                    "description": s.metadata.description,
-                    "scripts": s.scripts,
-                    "doc_content": s.doc_content,
-                }
-                for s in results
-            ],
-            "count": len(results),
-        }
-
     async def emit_chart(
         ctx: RunContext[Any],
         title: str,
@@ -293,19 +270,7 @@ def create_base_tools(workers: dict[str, Any]) -> list[Callable]:
 
         logger.info(f"图表渲染 | title={title} type={chart_type} widget_id={widget_id}")
 
-        # 直接推送 render_widget 事件到 SSE
-        _publish_fn = _publish_fn_var.get()
-        if _publish_fn:
-            try:
-                import asyncio
-                asyncio.ensure_future(_publish_fn({
-                    "event_type": "render_widget",
-                    "widget_id": widget_id,
-                    "ui_component": "DataChart",
-                    "props": props,
-                }))
-            except Exception as e:
-                logger.warning(f"render_widget 推送失败 | error={e}")
+        # render_widget 事件由 EventPublishingCapability.after_tool_execute 推送
 
         return {
             "success": True,
@@ -383,64 +348,6 @@ def create_base_tools(workers: dict[str, Any]) -> list[Callable]:
                 "data": {"dag_id": "", "query": query, "tasks": []},
             }
 
-    async def tool_search(ctx: RunContext[Any], query: str) -> dict[str, Any]:
-        """搜索并加载外部工具（MCP 渐进式加载）
-
-        支持三种搜索模式：
-        - "select:name1,name2" → 精确匹配指定工具
-        - "+keyword" → 名称包含关键词
-        - "keyword" → 正则匹配名称和描述
-
-        Args:
-            query: 搜索查询
-        """
-        from src_deepagent.capabilities.mcp.deferred_registry import deferred_tool_registry
-
-        results = deferred_tool_registry.search(query)
-        if not results:
-            return {
-                "success": True,
-                "data": {"tools": [], "count": 0},
-                "message": f"未找到匹配 '{query}' 的工具",
-            }
-
-        tools_data = [
-            {
-                "name": t.name,
-                "description": t.description,
-                "schema": t.schema,
-                "server": t.server_name,
-            }
-            for t in results
-        ]
-
-        logger.info(f"工具搜索 | query={query} found={len(results)}")
-        return {
-            "success": True,
-            "data": {"tools": tools_data, "count": len(results)},
-        }
-
-    async def call_mcp_tool(
-        ctx: RunContext[Any],
-        tool_name: str,
-        arguments: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        """调用 MCP 外部工具
-
-        先通过 tool_search 搜索并确认工具存在，再使用此函数执行。
-
-        Args:
-            tool_name: 工具名称（从 tool_search 结果中获取）
-            arguments: 工具参数（JSON 对象，与 tool_search 返回的 schema 对应）
-        """
-        from src_deepagent.capabilities.mcp.client_manager import mcp_client_manager
-
-        if not mcp_client_manager.connected_endpoints:
-            return {"success": False, "error": "MCP 未连接，无可用端点"}
-
-        logger.info(f"执行 MCP 工具 | tool={tool_name} args={json.dumps(arguments or {}, ensure_ascii=False)[:200]}")
-        return await mcp_client_manager.call_tool(tool_name, arguments)
-
     async def baidu_search(
         ctx: RunContext[Any],
         query: str,
@@ -509,101 +416,12 @@ def create_base_tools(workers: dict[str, Any]) -> list[Callable]:
         )
         return _create_skill(request)
 
-    tools = [
-        execute_rag_search,
-        execute_db_query,
-        execute_api_call,
-        execute_sandbox,
-        execute_skill,
-        search_skills,
-        create_skill,
-        emit_chart,
-        recall_memory,
-        plan_and_decompose,
-        tool_search,
-        call_mcp_tool,
-        baidu_search,
-    ]
-
-    return [_wrap_with_tool_result(fn) for fn in tools]
-
-
-def _wrap_with_tool_result(fn: Callable) -> Callable:
-    """包装工具函数，执行完自动推送 tool_result 事件（使用 ContextVar，并发安全）+ Langfuse Span"""
-    import functools
-    import asyncio
-    from src_deepagent.monitoring.langfuse_tracer import trace_span, update_current_span
-
-    @functools.wraps(fn)
-    async def wrapper(*args, **kwargs):
-        tool_name = fn.__name__
-
-        with trace_span(
-            name=f"tool_{tool_name}",
-            as_type="tool",
-            input={"args": str(kwargs)[:500] if kwargs else str(args[1:])[:500]},
-            metadata={"tool_type": _infer_tool_type_local(tool_name)},
-        ) as _span:
-            try:
-                result = await fn(*args, **kwargs)
-            except Exception as e:
-                update_current_span(
-                    level="ERROR",
-                    status_message=str(e)[:500],
-                )
-                raise
-
-            # 更新 Span 输出
-            if isinstance(result, dict):
-                status = "success" if result.get("success", True) else "failed"
-                if status == "failed":
-                    update_current_span(
-                        output=result,
-                        level="ERROR",
-                        status_message=str(result.get("error", ""))[:500],
-                    )
-                else:
-                    update_current_span(output=result)
-            else:
-                update_current_span(output={"result": str(result)[:500]})
-
-            # 推送 tool_result 事件
-            publish_fn = _publish_fn_var.get()
-            if publish_fn:
-                try:
-                    if isinstance(result, dict):
-                        content = str(result.get("data", result.get("error", "")))
-                    else:
-                        status = "success"
-                        content = str(result)
-                    asyncio.ensure_future(publish_fn({
-                        "event_type": "tool_result",
-                        "tool_name": tool_name,
-                        "tool_type": _infer_tool_type_local(tool_name),
-                        "status": status,
-                        "content": content,
-                    }))
-                except Exception:
-                    pass
-
-            return result
-
-    return wrapper
-
-
-def _infer_tool_type_local(tool_name: str) -> str:
-    """根据工具名推断工具类型"""
-    _NATIVE = {
-        "execute_rag_search", "execute_db_query", "execute_api_call",
-        "emit_chart", "recall_memory", "plan_and_decompose",
-        "tool_search", "search_skills", "create_skill", "baidu_search",
+    # 按职责分组，为后续 Toolset 化重构铺路
+    return {
+        "native": [execute_rag_search, execute_db_query, execute_api_call, baidu_search],
+        "sandbox": [execute_sandbox, execute_skill],
+        "ui": [emit_chart],
+        "memory": [recall_memory],
+        "plan": [plan_and_decompose],
+        "skill_mgmt": [create_skill],
     }
-    if tool_name in _NATIVE:
-        return "native_worker"
-    if tool_name in {"execute_sandbox"}:
-        return "sandbox"
-    if tool_name == "execute_skill":
-        return "skill"
-    if tool_name == "call_mcp_tool":
-        return "mcp"
-    return "tool"

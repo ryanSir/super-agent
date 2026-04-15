@@ -70,7 +70,6 @@ class PromptContext:
     """注入 System Prompt 的文本内容"""
 
     skill_summary: str
-    deferred_tool_summaries: list[dict[str, str]] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -80,11 +79,13 @@ class ResolvedResources:
     三层结构：
     - infra: 底层资源（Workers/MCP 连接），被 agent_tools 依赖
     - agent_tools: 给 LLM 的工具函数列表，基于 infra 构建
+    - mcp_toolsets: MCP 外部工具 toolsets（传入 Agent）
     - prompt_ctx: 给 System Prompt 的文本内容
     """
 
     infra: InfraResources
-    agent_tools: list[Callable]
+    agent_tools: dict[str, list[Callable]]
+    mcp_toolsets: list[Any]
     prompt_ctx: PromptContext
 
 
@@ -236,8 +237,8 @@ class ReasoningEngine:
         self._refresh_task: asyncio.Task | None = None
 
     async def startup(self) -> None:
-        """启动时预热：建立 MCP 连接 + 预热资源缓存 + 启动定期刷新任务"""
-        # 先建立 MCP 连接，工具元数据注册到 deferred_tool_registry
+        """启动时预热：创建 MCP Server 实例 + 预热资源缓存 + 启动定期刷新任务"""
+        # 先创建 MCP Server 实例
         await self._connect_mcp()
         # 再预热资源缓存
         await self._resolve_resources()
@@ -259,16 +260,16 @@ class ReasoningEngine:
         logger.info("[ReasoningEngine] 刷新任务已停止")
 
     async def reload_mcp(self) -> int:
-        """手动触发 MCP 工具刷新，清除资源缓存
+        """手动触发 MCP 刷新，清除资源缓存
 
         Returns:
-            刷新后的工具总数
+            刷新后的 MCPServer 数量
         """
         from src_deepagent.capabilities.mcp.client_manager import mcp_client_manager
-        tool_count = await mcp_client_manager.refresh()
+        server_count = mcp_client_manager.refresh()
         self._resources_cache = None
-        logger.info(f"[ReasoningEngine] MCP 手动刷新完成 | tools={tool_count}")
-        return tool_count
+        logger.info(f"[ReasoningEngine] MCP 手动刷新完成 | servers={server_count}")
+        return server_count
 
     async def _refresh_loop(self, interval: int) -> None:
         """定期刷新 MCP 工具列表"""
@@ -615,44 +616,42 @@ class ReasoningEngine:
         if self._resources_cache is not None:
             return self._resources_cache
 
-        # Skill summary（内存读取）
-        from src_deepagent.capabilities.skills.registry import skill_registry
-
-        skill_summary = skill_registry.get_skill_summary()
-
-        # 桥接工具（基于 workers 创建）
+        # 桥接工具（基于 workers 创建，返回分组 dict）
         from src_deepagent.capabilities.base_tools import create_base_tools
 
         agent_tools = create_base_tools(self._workers)
 
-        # MCP 延迟加载工具摘要（名称+描述注入 prompt，让 LLM 知道工具用途）
-        from src_deepagent.capabilities.mcp.deferred_registry import deferred_tool_registry
+        # MCP toolsets（pydantic-ai MCPServer 实例）
+        from src_deepagent.capabilities.mcp.client_manager import mcp_client_manager
 
-        deferred_tool_summaries = deferred_tool_registry.get_tool_summaries()
+        mcp_toolsets = mcp_client_manager.get_toolsets()
 
         infra = InfraResources(workers=self._workers)
 
+        # Skill 摘要不再手动注入，由框架 SkillsToolset.get_instructions() 自动管理
         prompt_ctx = PromptContext(
-            skill_summary=skill_summary,
-            deferred_tool_summaries=deferred_tool_summaries,
+            skill_summary="",
         )
 
         self._resources_cache = ResolvedResources(
             infra=infra,
             agent_tools=agent_tools,
+            mcp_toolsets=mcp_toolsets,
             prompt_ctx=prompt_ctx,
         )
 
+        # 统计工具总数
+        total_tools = sum(len(v) for v in agent_tools.values())
         logger.info(
             f"[ReasoningEngine] 资源获取完成 | "
             f"workers={len(self._workers)} "
-            f"agent_tools={len(agent_tools)} "
-            f"deferred_tools={len(deferred_tool_summaries)}"
+            f"agent_tools={total_tools} (groups={list(agent_tools.keys())}) "
+            f"mcp_toolsets={len(mcp_toolsets)}"
         )
         return self._resources_cache
 
     async def _connect_mcp(self) -> None:
-        """建立 MCP 连接，工具元数据注册到 deferred_tool_registry"""
+        """创建 MCP Server 实例（pydantic-ai toolsets）"""
         from src_deepagent.config.settings import get_settings
         from src_deepagent.capabilities.mcp.client_manager import (
             mcp_client_manager,
@@ -669,10 +668,10 @@ class ReasoningEngine:
             return
 
         try:
-            tool_count = await mcp_client_manager.connect(endpoints)
-            logger.info(f"[ReasoningEngine] MCP 连接完成 | tools={tool_count}")
+            server_count = mcp_client_manager.setup(endpoints)
+            logger.info(f"[ReasoningEngine] MCP 初始化完成 | servers={server_count}")
         except Exception as e:
-            logger.error(f"[ReasoningEngine] MCP 连接异常 | error={e}")
+            logger.error(f"[ReasoningEngine] MCP 初始化异常 | error={e}")
 
     # ── 执行计划装配 ──────────────────��───────────────────
 

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -11,6 +13,10 @@ class SkillMetadata(BaseModel):
     name: str = Field(description="技能名称（小写字母+连字符）")
     description: str = Field(default="", description="技能描述")
     path: str = Field(default="", description="技能目录路径")
+    execution: Literal["native", "sandbox"] = Field(
+        default="sandbox",
+        description="执行模式：native（主Agent用Base Tool执行）或 sandbox（Pi Agent沙箱执行）",
+    )
 
 
 class SkillInfo(BaseModel):

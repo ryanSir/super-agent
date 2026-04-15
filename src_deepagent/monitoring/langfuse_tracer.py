@@ -139,12 +139,24 @@ def trace_span(
     if usage_details is not None:
         kwargs["usage_details"] = usage_details
 
+    # 分离 Langfuse 自身错误与业务异常：
+    # - Langfuse 创建 span 失败 → 降级为 no-op
+    # - 业务代码抛异常 → 透传，不吞掉
     try:
-        with _client.start_as_current_observation(**kwargs) as span:
-            yield span
+        cm = _client.start_as_current_observation(**kwargs)
+        span = cm.__enter__()
     except Exception as e:
-        logger.warning(f"Langfuse span 异常 | name={name} error={e}")
+        logger.warning(f"Langfuse span 创建失败 | name={name} error={e}")
         yield None
+        return
+
+    try:
+        yield span
+    finally:
+        try:
+            cm.__exit__(None, None, None)
+        except Exception as e:
+            logger.warning(f"Langfuse span 关闭失败 | name={name} error={e}")
 
 
 def update_current_span(

@@ -1,5 +1,6 @@
 ---
 name: cost-reduction-triz
+execution: native
 description: >-
   Product cost reduction analysis. Redirects users to a TRIZ-based tool for
   structural optimization, component trimming, and BOM cost reduction.

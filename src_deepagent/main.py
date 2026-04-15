@@ -1,6 +1,7 @@
 """FastAPI 应用入口
 
-应用工厂 + lifespan（启动时初始化 Redis/Workers/SkillRegistry，关闭时清理）。
+应用工厂 + lifespan（启动时初始化 Redis/Workers，关闭时清理）。
+Skill 发现由框架 SkillsToolset 在 Agent 创建时自动完成。
 """
 
 from __future__ import annotations
@@ -17,7 +18,6 @@ from src_deepagent.core.logging import get_logger
 from src_deepagent.gateway import rest_api, websocket_api
 from src_deepagent.llm.config import configure_litellm
 from src_deepagent.monitoring.langfuse_tracer import configure_langfuse, shutdown as langfuse_shutdown
-from src_deepagent.capabilities.skills.registry import skill_registry
 
 logger = get_logger(__name__)
 
@@ -40,9 +40,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # 初始化 Workers
     workers = rest_api.init_workers()
 
-    # 扫描 Skills
-    skill_count = skill_registry.scan(settings.skill_dir)
-    logger.info(f"Skill 扫描完成 | count={skill_count}")
+    # Skill 发现由框架 SkillsToolset 在 Agent 创建时自动完成，无需启动时扫描
 
     # 配置网关
     rest_api.configure(workers=workers, redis_client=redis_client)

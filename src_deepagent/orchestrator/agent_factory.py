@@ -16,6 +16,7 @@ warnings.filterwarnings("ignore", message=".*WebFetch local fallback.*")
 from src_deepagent.core.logging import get_logger
 from src_deepagent.llm.config import get_model
 from src_deepagent.orchestrator.hooks import create_hooks
+from src_deepagent.capabilities.event_publishing import EventPublishingCapability
 from src_deepagent.context.builder import build_dynamic_instructions
 from src_deepagent.orchestrator.reasoning_engine import ExecutionPlan
 from src_deepagent.schemas.agent import OrchestratorOutput
@@ -60,30 +61,59 @@ def create_orchestrator_agent(
     instructions = build_dynamic_instructions(
         skill_summary=plan.resources.prompt_ctx.skill_summary,
         sub_agent_roles=role_descriptions,
-        deferred_tool_names=plan.resources.prompt_ctx.deferred_tool_summaries,
         max_concurrent_subagents=settings.max_concurrent_subagents,
         execution_mode=plan.mode.value,
     )
 
     # 构建 Hooks（pydantic-deep 框架格式）
-    hooks = create_hooks(publish_fn=publish_fn)
+    hooks = create_hooks()
+
+    # 构建 Capabilities 列表
+    capabilities = []
+
+    # 事件发布 Capability
+    hook_settings = settings.hooks
+    if hook_settings.event_publishing_enabled and publish_fn:
+        capabilities.append(EventPublishingCapability(
+            publish_fn=publish_fn,
+            session_id=session_id,
+            trace_id=trace_id,
+        ))
+
+    # 安全 — ToolGuard 工具黑名单
+    if hook_settings.blocked_tools:
+        try:
+            from pydantic_ai_shields import ToolGuard
+            blocked = [t.strip() for t in hook_settings.blocked_tools.split(",") if t.strip()]
+            if blocked:
+                capabilities.append(ToolGuard(blocked=blocked))
+                logger.info(f"ToolGuard 已启用 | blocked={blocked}")
+        except ImportError:
+            logger.warning("pydantic_ai_shields 未安装，ToolGuard 不可用")
 
     # DIRECT 模式用 fast 模型（速度快、成本低），复杂模式用 planning 模型
     model_alias = "subagent" if plan.mode.value == "direct" else "orchestrator"
+
+    # MCP toolsets（pydantic-ai MCPServer 实例）
+    mcp_toolsets = plan.resources.mcp_toolsets
 
     # 创建主 Agent
     agent = create_deep_agent(
         model=get_model(model_alias),
         instructions=instructions,
         hooks=hooks,
+        capabilities=capabilities if capabilities else None,
 
         # deepagents 能力
         include_todo=True,
         include_subagents=True,
         include_filesystem=False,
-        include_skills=False,
+        include_skills=True,
         include_memory=False,
         include_checkpoints=False,
+
+        # Skill 目录配置
+        skill_directories=[{"path": settings.skill_dir, "recursive": True}],
 
         # 禁用内置 web 工具（不兼容 OpenAIChatModel）
         web_search=False,
@@ -99,8 +129,15 @@ def create_orchestrator_agent(
         # 成本追踪
         cost_tracking=True,
 
-        # 工具（桥接工具）
-        tools=plan.resources.agent_tools,
+        # 工具（桥接工具 — 合并所有分组）
+        tools=[t for group in plan.resources.agent_tools.values() for t in group],
+
+        # MCP 外部工具（pydantic-ai toolsets）
+        toolsets=mcp_toolsets if mcp_toolsets else None,
+
+        # 关闭 patch_tool_calls，避免与 MCP toolset 错误处理冲突
+        # （MCP 返回错误时框架已生成 retry-prompt，patch 会额外插入 tool-return 导致重复）
+        patch_tool_calls=False,
 
         # Sub-Agent 配置
         subagents=sub_agent_configs,
@@ -137,9 +174,10 @@ def _create_fallback_agent(
         retries=2,
     )
 
-    # 注册桥接工具
-    for tool_fn in plan.resources.agent_tools:
-        agent.tool(tool_fn)
+    # 注册桥接工具（合并所有分组）
+    for group_tools in plan.resources.agent_tools.values():
+        for tool_fn in group_tools:
+            agent.tool(tool_fn)
 
     logger.warning("使用 Fallback Agent（pydantic-deep 未安装）")
     return agent, {"session_id": session_id, "trace_id": trace_id}

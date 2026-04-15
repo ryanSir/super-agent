@@ -1,7 +1,9 @@
 """Hooks — 基于 pydantic-deep 框架的生命周期钩子
 
-将事件推送、循环检测、安全审计等能力以 Hook(event, handler) 形式注册到 Agent，
-由框架在工具调用 / LLM 请求 / Agent 运行等生命周期节点自动触发。
+循环检测、安全审计等能力以 Hook(event, handler) 形式注册到 Agent，
+由框架在工具调用 / Agent 运行等生命周期节点自动触发。
+
+事件发布由 EventPublishingCapability 负责，Token 追踪由 CostTracking capability 负责。
 """
 
 from __future__ import annotations
@@ -9,7 +11,6 @@ from __future__ import annotations
 import hashlib
 import time
 from collections import deque
-from typing import Any, Callable
 
 from pydantic_deep.capabilities.hooks import Hook, HookEvent, HookInput, HookResult
 
@@ -18,48 +19,13 @@ from src_deepagent.core.logging import get_logger
 logger = get_logger(__name__)
 
 
-# ── 事件推送 Hooks ─────────────────────────────────────────
-
-
-def create_event_push_hooks(publish_fn: Callable | None = None) -> list[Hook]:
-    """工具调用事件推送到 Redis Stream → SSE → 前端
-
-    Args:
-        publish_fn: 已绑定 session_id 的事件发布函数，签名 async def(event: dict)
-    """
-
-    async def on_tool_call(inp: HookInput) -> HookResult:
-        # logger.info(f">>>>>> HOOK FIRED: PRE_TOOL_USE [EventPush] | tool={inp.tool_name} <<<<<<")
-        # NOTE: 暂不推送事件，避免与 rest_api._execute_plan() 中的推送重复
-        # 后续清理 rest_api 冗余推送后再启用
-        return HookResult(allow=True)
-
-    async def on_tool_result(inp: HookInput) -> HookResult:
-        # logger.info(f">>>>>> HOOK FIRED: POST_TOOL_USE [EventPush] | tool={inp.tool_name} <<<<<<")
-        return HookResult()
-
-    async def on_tool_failure(inp: HookInput) -> HookResult:
-        # logger.info(f">>>>>> HOOK FIRED: POST_TOOL_USE_FAILURE [EventPush] | tool={inp.tool_name} <<<<<<")
-        return HookResult()
-
-    return [
-        Hook(event=HookEvent.PRE_TOOL_USE, handler=on_tool_call, background=True),
-        Hook(event=HookEvent.POST_TOOL_USE, handler=on_tool_result, background=True),
-        Hook(event=HookEvent.POST_TOOL_USE_FAILURE, handler=on_tool_failure, background=True),
-    ]
-
-
 # ── 循环检测 Hooks ─────────────────────────────────────────
-
-_DEFAULT_WINDOW_SIZE = 20
-_WARN_THRESHOLD = 3
-_HARD_LIMIT = 5
 
 
 def create_loop_detection_hooks(
-    window_size: int = _DEFAULT_WINDOW_SIZE,
-    warn_threshold: int = _WARN_THRESHOLD,
-    hard_limit: int = _HARD_LIMIT,
+    window_size: int = 20,
+    warn_threshold: int = 3,
+    hard_limit: int = 5,
 ) -> list[Hook]:
     """循环检测：滑动窗口 + MD5 去重 + 警告 + 强制拒绝
 
@@ -72,7 +38,6 @@ def create_loop_detection_hooks(
     hash_counts: dict[str, int] = {}
 
     async def detect_loop(inp: HookInput) -> HookResult:
-        # logger.info(f">>>>>> HOOK FIRED: PRE_TOOL_USE [LoopDetection] | tool={inp.tool_name} <<<<<<")
         fingerprint = hashlib.md5(
             f"{inp.tool_name}:{inp.tool_input}".encode()
         ).hexdigest()
@@ -107,7 +72,6 @@ def create_loop_detection_hooks(
 
     async def reset_on_run(_inp: HookInput) -> HookResult:
         """每次 Agent 运行开始时重置检测状态"""
-        # logger.info(">>>>>> HOOK FIRED: BEFORE_RUN [LoopDetection] | resetting state <<<<<<")
         call_hashes.clear()
         hash_counts.clear()
         return HookResult()
@@ -123,11 +87,10 @@ def create_loop_detection_hooks(
 
 def create_audit_hooks() -> list[Hook]:
     """安全审计日志：工具名 / 参数 / 耗时 / 结果"""
-    call_start_times: dict[str, float] = {}
+    call_start_times: dict[str, list[float]] = {}
 
     async def log_call(inp: HookInput) -> HookResult:
-        # logger.info(f">>>>>> HOOK FIRED: PRE_TOOL_USE [AuditLogger] | tool={inp.tool_name} <<<<<<")
-        call_start_times[inp.tool_name] = time.monotonic()
+        call_start_times.setdefault(inp.tool_name, []).append(time.monotonic())
         logger.info(
             f"[AUDIT] 工具调用开始 | tool={inp.tool_name} "
             f"args={str(inp.tool_input)[:200]}"
@@ -135,8 +98,8 @@ def create_audit_hooks() -> list[Hook]:
         return HookResult(allow=True)
 
     async def log_result(inp: HookInput) -> HookResult:
-        # logger.info(f">>>>>> HOOK FIRED: POST_TOOL_USE [AuditLogger] | tool={inp.tool_name} <<<<<<")
-        start = call_start_times.pop(inp.tool_name, None)
+        starts = call_start_times.get(inp.tool_name, [])
+        start = starts.pop(0) if starts else None
         elapsed = f"{time.monotonic() - start:.2f}s" if start else "unknown"
         logger.info(
             f"[AUDIT] 工具调用完成 | tool={inp.tool_name} "
@@ -146,8 +109,8 @@ def create_audit_hooks() -> list[Hook]:
         return HookResult()
 
     async def log_failure(inp: HookInput) -> HookResult:
-        # logger.info(f">>>>>> HOOK FIRED: POST_TOOL_USE_FAILURE [AuditLogger] | tool={inp.tool_name} <<<<<<")
-        start = call_start_times.pop(inp.tool_name, None)
+        starts = call_start_times.get(inp.tool_name, [])
+        start = starts.pop(0) if starts else None
         elapsed = f"{time.monotonic() - start:.2f}s" if start else "unknown"
         logger.error(
             f"[AUDIT] 工具调用失败 | tool={inp.tool_name} "
@@ -163,37 +126,27 @@ def create_audit_hooks() -> list[Hook]:
     ]
 
 
-# ── Token 用量追踪 Hooks ──────────────────────────────────
-
-
-def create_token_tracker_hooks() -> list[Hook]:
-    """Token 用量追踪（每次 LLM 调用后记录）"""
-
-    async def track_tokens(inp: HookInput) -> HookResult:
-        # logger.info(f">>>>>> HOOK FIRED: AFTER_MODEL_REQUEST [TokenTracker] | event={inp.event} <<<<<<")
-        return HookResult()
-
-    return [
-        Hook(event=HookEvent.AFTER_MODEL_REQUEST, handler=track_tokens),
-    ]
-
-
 # ── 工厂函数 ───────────────────────────────────────────────
 
 
-def create_hooks(publish_fn: Callable | None = None) -> list[Hook]:
+def create_hooks() -> list[Hook]:
     """创建所有 Hook 实例（pydantic-deep 框架格式）
 
-    Args:
-        publish_fn: 已绑定 session_id 的事件发布函数，签名 async def(event: dict)。
-                    传 None 则事件推送 hooks 不生效。
+    从 HooksSettings 读取配置，按开关决定是否注册各类 hook。
 
     Returns:
         Hook 实例列表，可直接传入 create_deep_agent(hooks=...)
     """
+    from src_deepagent.config.settings import get_settings
+
+    settings = get_settings().hooks
+
     hooks: list[Hook] = []
-    hooks.extend(create_event_push_hooks(publish_fn))
-    hooks.extend(create_loop_detection_hooks())
-    hooks.extend(create_audit_hooks())
-    hooks.extend(create_token_tracker_hooks())
+    hooks.extend(create_loop_detection_hooks(
+        window_size=settings.loop_window_size,
+        warn_threshold=settings.loop_warn_threshold,
+        hard_limit=settings.loop_hard_limit,
+    ))
+    if settings.audit_enabled:
+        hooks.extend(create_audit_hooks())
     return hooks

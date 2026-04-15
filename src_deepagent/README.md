@@ -566,7 +566,7 @@ tools: [execute_db_query, execute_sandbox]
 4. create_orchestrator_agent(plan, sub_agent_configs)
    → build_dynamic_instructions(execution_mode, runtime_context, ...)
    → 从 templates/ 加载对应模式的提示词模板
-   → create_hooks(publish_fn) 创建生命周期 Hooks
+   → create_hooks() 创建生命周期 Hooks
    → create_deep_agent(hooks=hooks) 创建主 Agent
    ↓
 5. agent.run(effective_query, deps=deps)

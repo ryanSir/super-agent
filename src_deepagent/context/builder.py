@@ -51,10 +51,9 @@ _MODE_TEMPLATES: dict[str, str] = {
 
 
 def build_dynamic_instructions(
-    skill_summary: str = "",
+    skill_summary: str = "",  # deprecated: 由框架 SkillsToolset.get_instructions() 自动注入
     memory_text: str = "",
     sub_agent_roles: list[dict[str, str]] | None = None,
-    deferred_tool_names: list[dict[str, str]] | None = None,
     max_concurrent_subagents: int = 3,
     execution_mode: str = "auto",
     runtime_context: dict[str, str] | None = None,
@@ -64,10 +63,9 @@ def build_dynamic_instructions(
     从 templates/ 加载各模块模板，根据 execution_mode 动态组装。
 
     Args:
-        skill_summary: Skill 注册表摘要
+        skill_summary: [deprecated] 已由框架 SkillsToolset 自动管理，此参数被忽略
         memory_text: 用户记忆上下文
         sub_agent_roles: Sub-Agent 角色描述列表
-        deferred_tool_names: MCP 延迟加载工具名称列表
         max_concurrent_subagents: Sub-Agent 最大并发数
         execution_mode: 执行模式（direct/auto/plan_and_execute/sub_agent）
         runtime_context: 运行时上下文（session_id/user_id/current_time 等）
@@ -105,14 +103,11 @@ def build_dynamic_instructions(
     # 5. 工具使用规范
     sections.append(_load_template("tool_usage"))
 
-    # 6. 技能系统（动态注入）
-    if skill_summary:
-        sections.append(
-            f"<skill_system>\n"
-            f"以下技能可通过 execute_skill 调用。先用 search_skills 查看详情，再执行。\n\n"
-            f"{skill_summary}\n"
-            f"</skill_system>"
-        )
+    # 6. 技能路由引导（native/sandbox 分流指引）
+    # Skill 摘要由框架 SkillsToolset.get_instructions() 自动注入，这里只加载路由引导
+    skill_routing = _load_template("skill_routing")
+    if skill_routing:
+        sections.append(skill_routing)
 
     # 7. Sub-Agent 编排指令（仅 auto/sub_agent 模式）
     if sub_agent_roles and execution_mode in ("auto", "sub_agent"):
@@ -130,20 +125,7 @@ def build_dynamic_instructions(
             )
         )
 
-    # 8. MCP 延迟工具
-    if deferred_tool_names:
-        tools_text = "\n".join(
-            f"  {t['name']}: {t['description']}" for t in deferred_tool_names
-        )
-        sections.append(
-            f"<available_mcp_tools>\n"
-            f"以下 MCP 外部工具可直接通过 call_mcp_tool 调用：\n{tools_text}\n\n"
-            f"使用方式：call_mcp_tool(tool_name=\"工具名\", arguments={{...}})\n"
-            f"如需查看工具的完整参数定义，可先调用 tool_search(\"select:工具名\")。\n"
-            f"</available_mcp_tools>"
-        )
-
-    # 9. 用户记忆
+    # 8. 用户记忆
     if memory_text:
         sections.append(f"<memory>\n{memory_text}\n</memory>")
 
