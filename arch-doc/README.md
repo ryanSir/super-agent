@@ -12,6 +12,7 @@
 | [04-runtime-flows.md](./04-runtime-flows.md) | 运行时数据流 — 核心链路时序图与状态机 | 开发者 |
 | [05-tech-decisions.md](./05-tech-decisions.md) | 技术选型与决策记录 (ADR) | 架构师、新成员 |
 | [06-deployment-guide.md](./06-deployment-guide.md) | 部署与配置指南 | 运维、开发者 |
+| [07-directory-restructure.md](./07-directory-restructure.md) | 目录结构重构方案 — 目标目录树、迁移映射、模块依赖 | 架构师、开发者 |
 
 ## 建议阅读顺序
 
