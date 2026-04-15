@@ -60,7 +60,6 @@ def create_orchestrator_agent(
     instructions = build_dynamic_instructions(
         skill_summary=plan.resources.prompt_ctx.skill_summary,
         sub_agent_roles=role_descriptions,
-        deferred_tool_names=plan.resources.prompt_ctx.deferred_tool_summaries,
         max_concurrent_subagents=settings.max_concurrent_subagents,
         execution_mode=plan.mode.value,
     )
@@ -70,6 +69,9 @@ def create_orchestrator_agent(
 
     # DIRECT 模式用 fast 模型（速度快、成本低），复杂模式用 planning 模型
     model_alias = "subagent" if plan.mode.value == "direct" else "orchestrator"
+
+    # MCP toolsets（pydantic-ai MCPServer 实例）
+    mcp_toolsets = plan.resources.mcp_toolsets
 
     # 创建主 Agent
     agent = create_deep_agent(
@@ -101,6 +103,13 @@ def create_orchestrator_agent(
 
         # 工具（桥接工具）
         tools=plan.resources.agent_tools,
+
+        # MCP 外部工具（pydantic-ai toolsets）
+        toolsets=mcp_toolsets if mcp_toolsets else None,
+
+        # 关闭 patch_tool_calls，避免与 MCP toolset 错误处理冲突
+        # （MCP 返回错误时框架已生成 retry-prompt，patch 会额外插入 tool-return 导致重复）
+        patch_tool_calls=False,
 
         # Sub-Agent 配置
         subagents=sub_agent_configs,

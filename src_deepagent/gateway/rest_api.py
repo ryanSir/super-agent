@@ -228,7 +228,7 @@ _WRAPPED_TOOL_NAMES = frozenset({
     "execute_rag_search", "execute_db_query", "execute_api_call",
     "execute_sandbox", "execute_skill", "search_skills", "create_skill",
     "emit_chart", "recall_memory", "plan_and_decompose",
-    "tool_search", "call_mcp_tool", "baidu_search",
+    "baidu_search",
 })
 
 
@@ -311,14 +311,14 @@ async def _flush_pending_tool_results(
             pending_tool_calls.remove(name)
 
 
-async def _execute_plan(
-    plan: Any,
+async def _run_agent(
+    decision: Any,
     request: QueryRequest,
     session_id: str,
     trace_id: str,
     message_history: list[Any] | None = None,
 ) -> Any:
-    """执行单次编排计划，流式推送 A2UI 事件，返回 agent result"""
+    """根据推理决策创建并运行 Agent，流式推送 A2UI 事件，返回 agent result"""
     from pydantic_ai._agent_graph import CallToolsNode, ModelRequestNode, End
     from pydantic_ai.usage import UsageLimits
     from src_deepagent.orchestrator.reasoning_engine import ExecutionMode
@@ -329,27 +329,27 @@ async def _execute_plan(
     set_publish_fn(lambda event: _publish(session_id, {**event, "session_id": session_id, "trace_id": trace_id}))
 
     # 只有 AUTO 和 SUB_AGENT 模式才需要 Sub-Agent 配置
-    if plan.mode in (ExecutionMode.AUTO, ExecutionMode.SUB_AGENT):
-        sub_agent_configs = create_sub_agent_configs(plan.resources.agent_tools)
+    if decision.mode in (ExecutionMode.AUTO, ExecutionMode.SUB_AGENT):
+        sub_agent_configs = create_sub_agent_configs(decision.resources.agent_tools)
     else:
         sub_agent_configs = []
 
     agent, deps = create_orchestrator_agent(
-        plan=plan,
+        plan=decision,
         sub_agent_configs=sub_agent_configs,
         session_id=session_id,
         trace_id=trace_id,
         publish_fn=lambda event: _publish(session_id, {**event, "session_id": session_id, "trace_id": trace_id}),
     )
 
-    effective_query = plan.prompt_prefix + request.query
+    effective_query = decision.prompt_prefix + request.query
     _ctx = {"session_id": session_id, "trace_id": trace_id}
 
     with trace_span(
         name="agent_query",
         as_type="agent",
-        input={"query": request.query, "mode": str(plan.mode)},
-        metadata={"session_id": session_id, "trace_id": trace_id, "mode": str(plan.mode)},
+        input={"query": request.query, "mode": str(decision.mode)},
+        metadata={"session_id": session_id, "trace_id": trace_id, "mode": str(decision.mode)},
     ) as _trace:
 
         try:
@@ -369,8 +369,8 @@ async def _execute_plan(
                     ExecutionMode.PLAN_AND_EXECUTE: 16000,
                     ExecutionMode.SUB_AGENT: 16000,
                 }
-                max_tokens = _MAX_TOKENS.get(plan.mode, 8000)
-                if plan.mode != ExecutionMode.DIRECT:
+                max_tokens = _MAX_TOKENS.get(decision.mode, 8000)
+                if decision.mode != ExecutionMode.DIRECT:
                     iter_kwargs["model_settings"] = AnthropicModelSettings(
                         anthropic_thinking=BetaThinkingConfigEnabledParam(
                             type="enabled",
@@ -399,7 +399,6 @@ async def _execute_plan(
                 async for node in run:
                     # 如果有待推送的 tool_result，从消息历史提取
                     if pending_tool_calls:
-                        logger.info(f"[DEBUG] pending_tool_calls={pending_tool_calls} node_type={type(node).__name__}")
                         await _flush_pending_tool_results(run, pending_tool_calls, reported_tool_ids, session_id, _ctx)
                         # 只清除已被包装器覆盖的工具（它们的 tool_result 由包装器推送）
                         # 未被 flush 找到的非包装工具保留在 pending 中，等下次 flush 或 End 兜底
@@ -422,20 +421,8 @@ async def _execute_plan(
                             if hasattr(part, "tool_name"):
                                 tool_name = part.tool_name
                                 pending_tool_calls.append(tool_name)
-                                # call_mcp_tool 显示实际 MCP 工具名
+                                # 推送 tool_call 事件（调用前）
                                 display_name = tool_name
-                                if tool_name == "call_mcp_tool" and hasattr(part, "args"):
-                                    try:
-                                        import json as _json
-                                        args = part.args
-                                        if isinstance(args, str):
-                                            args = _json.loads(args)
-                                        if isinstance(args, dict):
-                                            mcp_tool = args.get("tool_name", "")
-                                            if mcp_tool:
-                                                display_name = f"call_mcp_tool({mcp_tool})"
-                                    except Exception:
-                                        pass
                                 await _publish(session_id, {
                                     "event_type": "tool_call",
                                     "tool_name": tool_name,
@@ -590,13 +577,13 @@ async def _run_orchestration(
         })
 
         # Stage 1: Reason
-        plan = await _reasoning_engine.decide(request.query, request.mode)
+        decision = await _reasoning_engine.decide(request.query, request.mode)
 
         await _publish(session_id, {
             "event_type": "process_update",
             "phase": "planning",
             "status": "completed",
-            "message": f"规划完成 | mode={plan.mode.value}",
+            "message": f"规划完成 | mode={decision.mode.value}",
             "session_id": session_id,
             "trace_id": trace_id,
         })
@@ -618,7 +605,7 @@ async def _run_orchestration(
             message_history = await _session_manager.load_messages(session_id)
 
         # Stage 2: Execute
-        result = await _execute_plan(plan, request, session_id, trace_id, message_history)
+        result = await _run_agent(decision, request, session_id, trace_id, message_history)
 
         # 保存对话历史
         if _session_manager and hasattr(result, "all_messages"):
@@ -670,7 +657,7 @@ async def _run_orchestration(
         if _session_manager:
             await _session_manager.update_status(session_id, SessionStatus.COMPLETED)
 
-        logger.info(f"编排完成 | session_id={session_id} mode={plan.mode.value}")
+        logger.info(f"编排完成 | session_id={session_id} mode={decision.mode.value}")
 
     except Exception as e:
         import traceback
@@ -692,9 +679,8 @@ def _infer_tool_type(tool_name: str) -> str:
     _NATIVE_TOOLS = {
         "execute_rag_search", "execute_db_query", "execute_api_call",
         "emit_chart", "recall_memory", "plan_and_decompose",
-        "tool_search", "search_skills", "create_skill", "baidu_search",
+        "search_skills", "create_skill", "baidu_search",
     }
-    _MCP_PROXY_TOOLS = {"call_mcp_tool"}
     _BUILTIN_TOOLS = {
         "write_todos", "read_todos", "update_todo_status",
         "task", "wait_task", "delegate_to_subagent",
@@ -705,8 +691,6 @@ def _infer_tool_type(tool_name: str) -> str:
         return "sandbox"
     if tool_name in _NATIVE_TOOLS:
         return "native_worker"
-    if tool_name in _MCP_PROXY_TOOLS:
-        return "mcp"
     if tool_name == "execute_skill":
         return "skill"
     if tool_name in _BUILTIN_TOOLS:

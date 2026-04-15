@@ -30,7 +30,7 @@ def create_event_push_hooks(publish_fn: Callable | None = None) -> list[Hook]:
 
     async def on_tool_call(inp: HookInput) -> HookResult:
         # logger.info(f">>>>>> HOOK FIRED: PRE_TOOL_USE [EventPush] | tool={inp.tool_name} <<<<<<")
-        # NOTE: 暂不推送事件，避免与 rest_api._execute_plan() 中的推送重复
+        # NOTE: 暂不推送事件，避免与 rest_api._run_agent() 中的推送重复
         # 后续清理 rest_api 冗余推送后再启用
         return HookResult(allow=True)
 

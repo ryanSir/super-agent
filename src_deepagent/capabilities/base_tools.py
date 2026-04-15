@@ -383,64 +383,6 @@ def create_base_tools(workers: dict[str, Any]) -> list[Callable]:
                 "data": {"dag_id": "", "query": query, "tasks": []},
             }
 
-    async def tool_search(ctx: RunContext[Any], query: str) -> dict[str, Any]:
-        """搜索并加载外部工具（MCP 渐进式加载）
-
-        支持三种搜索模式：
-        - "select:name1,name2" → 精确匹配指定工具
-        - "+keyword" → 名称包含关键词
-        - "keyword" → 正则匹配名称和描述
-
-        Args:
-            query: 搜索查询
-        """
-        from src_deepagent.capabilities.mcp.deferred_registry import deferred_tool_registry
-
-        results = deferred_tool_registry.search(query)
-        if not results:
-            return {
-                "success": True,
-                "data": {"tools": [], "count": 0},
-                "message": f"未找到匹配 '{query}' 的工具",
-            }
-
-        tools_data = [
-            {
-                "name": t.name,
-                "description": t.description,
-                "schema": t.schema,
-                "server": t.server_name,
-            }
-            for t in results
-        ]
-
-        logger.info(f"工具搜索 | query={query} found={len(results)}")
-        return {
-            "success": True,
-            "data": {"tools": tools_data, "count": len(results)},
-        }
-
-    async def call_mcp_tool(
-        ctx: RunContext[Any],
-        tool_name: str,
-        arguments: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        """调用 MCP 外部工具
-
-        先通过 tool_search 搜索并确认工具存在，再使用此函数执行。
-
-        Args:
-            tool_name: 工具名称（从 tool_search 结果中获取）
-            arguments: 工具参数（JSON 对象，与 tool_search 返回的 schema 对应）
-        """
-        from src_deepagent.capabilities.mcp.client_manager import mcp_client_manager
-
-        if not mcp_client_manager.connected_endpoints:
-            return {"success": False, "error": "MCP 未连接，无可用端点"}
-
-        logger.info(f"执行 MCP 工具 | tool={tool_name} args={json.dumps(arguments or {}, ensure_ascii=False)[:200]}")
-        return await mcp_client_manager.call_tool(tool_name, arguments)
-
     async def baidu_search(
         ctx: RunContext[Any],
         query: str,
@@ -520,8 +462,6 @@ def create_base_tools(workers: dict[str, Any]) -> list[Callable]:
         emit_chart,
         recall_memory,
         plan_and_decompose,
-        tool_search,
-        call_mcp_tool,
         baidu_search,
     ]
 
@@ -596,7 +536,7 @@ def _infer_tool_type_local(tool_name: str) -> str:
     _NATIVE = {
         "execute_rag_search", "execute_db_query", "execute_api_call",
         "emit_chart", "recall_memory", "plan_and_decompose",
-        "tool_search", "search_skills", "create_skill", "baidu_search",
+        "search_skills", "create_skill", "baidu_search",
     }
     if tool_name in _NATIVE:
         return "native_worker"
@@ -604,6 +544,4 @@ def _infer_tool_type_local(tool_name: str) -> str:
         return "sandbox"
     if tool_name == "execute_skill":
         return "skill"
-    if tool_name == "call_mcp_tool":
-        return "mcp"
     return "tool"

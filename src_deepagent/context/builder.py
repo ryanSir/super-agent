@@ -54,7 +54,6 @@ def build_dynamic_instructions(
     skill_summary: str = "",
     memory_text: str = "",
     sub_agent_roles: list[dict[str, str]] | None = None,
-    deferred_tool_names: list[dict[str, str]] | None = None,
     max_concurrent_subagents: int = 3,
     execution_mode: str = "auto",
     runtime_context: dict[str, str] | None = None,
@@ -67,7 +66,6 @@ def build_dynamic_instructions(
         skill_summary: Skill 注册表摘要
         memory_text: 用户记忆上下文
         sub_agent_roles: Sub-Agent 角色描述列表
-        deferred_tool_names: MCP 延迟加载工具名称列表
         max_concurrent_subagents: Sub-Agent 最大并发数
         execution_mode: 执行模式（direct/auto/plan_and_execute/sub_agent）
         runtime_context: 运行时上下文（session_id/user_id/current_time 等）
@@ -130,20 +128,7 @@ def build_dynamic_instructions(
             )
         )
 
-    # 8. MCP 延迟工具
-    if deferred_tool_names:
-        tools_text = "\n".join(
-            f"  {t['name']}: {t['description']}" for t in deferred_tool_names
-        )
-        sections.append(
-            f"<available_mcp_tools>\n"
-            f"以下 MCP 外部工具可直接通过 call_mcp_tool 调用：\n{tools_text}\n\n"
-            f"使用方式：call_mcp_tool(tool_name=\"工具名\", arguments={{...}})\n"
-            f"如需查看工具的完整参数定义，可先调用 tool_search(\"select:工具名\")。\n"
-            f"</available_mcp_tools>"
-        )
-
-    # 9. 用户记忆
+    # 8. 用户记忆
     if memory_text:
         sections.append(f"<memory>\n{memory_text}\n</memory>")
 
