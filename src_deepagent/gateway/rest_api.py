@@ -271,17 +271,24 @@ async def _flush_pending_tool_results(
     """
     reported_names: list[str] = []
     try:
-        for msg in reversed(run.all_messages()):
+        all_msgs = run.all_messages()
+        logger.info(f"[DEBUG _flush] pending={pending_tool_calls} total_msgs={len(all_msgs)} reported_ids_count={len(reported_tool_ids)}")
+        for msg_idx, msg in enumerate(reversed(all_msgs)):
             if not hasattr(msg, "parts"):
                 continue
             for part in msg.parts:
                 if getattr(part, "part_kind", None) != "tool-return":
                     continue
-                tcid = getattr(part, "tool_call_id", None) or getattr(part, "tool_name", "")
+                tcid = getattr(part, "tool_call_id", None)
+                tool_name = getattr(part, "tool_name", "")
+                content_preview = str(getattr(part, "content", ""))[:100]
+                logger.info(f"[DEBUG _flush] found tool-return | name={tool_name} tcid={tcid} content={content_preview}")
+                if not tcid:
+                    tcid = f"_part_{id(part)}"
                 if tcid in reported_tool_ids:
+                    logger.info(f"[DEBUG _flush] SKIPPED (already reported) | tcid={tcid}")
                     continue
                 reported_tool_ids.add(tcid)
-                tool_name = getattr(part, "tool_name", "")
                 reported_names.append(tool_name)
 
                 # 非包装器覆盖的工具（pydantic-deep 内置），需要在此推送 tool_result
@@ -373,8 +380,15 @@ async def _execute_plan(
                     )
                 else:
                     iter_kwargs["model_settings"] = AnthropicModelSettings(
+                        anthropic_thinking=BetaThinkingConfigEnabledParam(
+                            type="enabled",
+                            budget_tokens=max(1024, max_tokens // 4),
+                        ),
                         max_tokens=max_tokens,
                     )
+                    # iter_kwargs["model_settings"] = AnthropicModelSettings(
+                    #     max_tokens=max_tokens,
+                    # )
             except Exception:
                 pass
 
@@ -387,7 +401,12 @@ async def _execute_plan(
                     if pending_tool_calls:
                         logger.info(f"[DEBUG] pending_tool_calls={pending_tool_calls} node_type={type(node).__name__}")
                         await _flush_pending_tool_results(run, pending_tool_calls, reported_tool_ids, session_id, _ctx)
-                        pending_tool_calls.clear()
+                        # 只清除已被包装器覆盖的工具（它们的 tool_result 由包装器推送）
+                        # 未被 flush 找到的非包装工具保留在 pending 中，等下次 flush 或 End 兜底
+                        pending_tool_calls[:] = [
+                            name for name in pending_tool_calls
+                            if name not in _WRAPPED_TOOL_NAMES
+                        ]
 
                     if isinstance(node, CallToolsNode):
                         # 先推送 thinking 事件
@@ -470,15 +489,30 @@ async def _execute_plan(
                         if pending_tool_calls:
                             await _flush_pending_tool_results(run, pending_tool_calls, reported_tool_ids, session_id, _ctx)
 
-                            # 兜底：对还没被报告的 pending tool_call 推送成功状态
-                            # （覆盖 pydantic-deep 内置工具如 update_todo_status、write_todos）
+                            # 兜底：对还没被报告的 pending tool_call，尝试从消息历史提取内容
                             for pending_name in pending_tool_calls:
+                                # 尝试从消息历史找到最后一条匹配的 tool-return
+                                fallback_content = ""
+                                try:
+                                    for msg in reversed(run.all_messages()):
+                                        if not hasattr(msg, "parts"):
+                                            continue
+                                        for part in msg.parts:
+                                            if (getattr(part, "part_kind", None) == "tool-return"
+                                                    and getattr(part, "tool_name", "") == pending_name):
+                                                fallback_content = str(part.content) if hasattr(part, "content") else ""
+                                                break
+                                        if fallback_content:
+                                            break
+                                except Exception:
+                                    pass
+
                                 await _publish(session_id, {
                                     "event_type": "tool_result",
                                     "tool_name": pending_name,
                                     "tool_type": _infer_tool_type(pending_name),
                                     "status": "success",
-                                    "content": "",
+                                    "content": fallback_content,
                                     **_ctx,
                                 })
 
@@ -663,7 +697,7 @@ def _infer_tool_type(tool_name: str) -> str:
     _MCP_PROXY_TOOLS = {"call_mcp_tool"}
     _BUILTIN_TOOLS = {
         "write_todos", "read_todos", "update_todo_status",
-        "task", "delegate_to_subagent",
+        "task", "wait_task", "delegate_to_subagent",
         "context_summary", "checkpoint", "restore_checkpoint",
     }
 

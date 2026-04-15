@@ -41,6 +41,7 @@
   --color-mcp: #8b5cf6;
   --color-worker: #22c55e;
   --color-sandbox: #f59e0b;
+  --color-builtin: #06b6d4;
 
   /* Animation */
   --anim-fade-in: fadeSlideIn 0.2s ease forwards;
@@ -307,6 +308,7 @@ body {
 .tool-badge-mcp { background: rgba(139, 92, 246, 0.12); color: var(--color-mcp); }
 .tool-badge-worker { background: rgba(34, 197, 94, 0.12); color: var(--color-worker); }
 .tool-badge-sandbox { background: rgba(245, 158, 11, 0.12); color: var(--color-sandbox); }
+.tool-badge-builtin { background: rgba(6, 182, 212, 0.12); color: var(--color-builtin); }
 
 /* Response card base */
 .response-card {

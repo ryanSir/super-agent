@@ -67,6 +67,10 @@ function DataWidget({
                         return items
                       }
                     }
+                    // 扁平格式：seriesData 直接就是 [{name, value}]
+                    if (typeof first === 'object' && first !== null && 'name' in first && 'value' in first) {
+                      return seriesData
+                    }
                   }
                   // 兜底：从 xAxis + seriesData 组合
                   return (xAxis || []).map((name, i) => {

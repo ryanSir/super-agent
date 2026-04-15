@@ -92,8 +92,8 @@ def build_dynamic_instructions(
         ))
 
     # 3. 思考策略（DIRECT 模式不注入，避免模型输出 <thinking> 标签拖慢响应）
-    if execution_mode != "direct":
-        sections.append(_load_template("thinking_style"))
+    # if execution_mode != "direct":
+    sections.append(_load_template("thinking_style"))
 
     # 4. 澄清系统
     sections.append(_load_template("clarification"))

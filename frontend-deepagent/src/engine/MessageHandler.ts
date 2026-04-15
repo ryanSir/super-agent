@@ -24,7 +24,7 @@ export type StepState = {
 // 工具结果
 export type ToolResultState = {
   id: string
-  toolType: 'skill' | 'mcp' | 'native_worker' | 'sandbox'
+  toolType: 'skill' | 'mcp' | 'native_worker' | 'sandbox' | 'builtin'
   toolName: string
   rawToolName: string
   content: string

@@ -58,7 +58,7 @@ function ThinkingSection({ content, isActive = false }: ThinkingSectionProps) {
       </div>
       <div className={`thinking-content${expanded ? ' expanded' : ''}`}>
         {content}
-        {isActive && <span className="cursor-blink">▊</span>}
+        {isActive && <span className="cursor-blink">_</span>}
       </div>
     </div>
   )

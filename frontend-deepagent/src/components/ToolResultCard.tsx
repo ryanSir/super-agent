@@ -10,7 +10,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
 type ToolResultCardProps = {
-  toolType: 'skill' | 'mcp' | 'native_worker' | 'sandbox'
+  toolType: 'skill' | 'mcp' | 'native_worker' | 'sandbox' | 'builtin'
   toolName: string
   content: string
   status: 'success' | 'failed'
@@ -23,6 +23,7 @@ const TOOL_TYPE_CONFIG = {
   mcp:           { label: 'MCP',     icon: '🌐', badgeClass: 'tool-badge-mcp' },
   native_worker: { label: 'Worker',  icon: '⚙️', badgeClass: 'tool-badge-worker' },
   sandbox:       { label: 'Sandbox', icon: '🔒', badgeClass: 'tool-badge-sandbox' },
+  builtin:       { label: 'Builtin', icon: '🔧', badgeClass: 'tool-badge-builtin' },
 }
 
 function NodeIcon({ loading, status }: { loading?: boolean; status: 'success' | 'failed' }) {
