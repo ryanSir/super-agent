@@ -6,7 +6,12 @@
 
 from __future__ import annotations
 
+import warnings
 from typing import Any
+
+# 抑制 pydantic-ai WebSearch/WebFetch 可选依赖警告
+warnings.filterwarnings("ignore", message=".*WebSearch local fallback.*")
+warnings.filterwarnings("ignore", message=".*WebFetch local fallback.*")
 
 from src_deepagent.core.logging import get_logger
 from src_deepagent.llm.config import get_model

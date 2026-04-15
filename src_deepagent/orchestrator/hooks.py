@@ -29,17 +29,17 @@ def create_event_push_hooks(publish_fn: Callable | None = None) -> list[Hook]:
     """
 
     async def on_tool_call(inp: HookInput) -> HookResult:
-        logger.info(f">>>>>> HOOK FIRED: PRE_TOOL_USE [EventPush] | tool={inp.tool_name} <<<<<<")
+        # logger.info(f">>>>>> HOOK FIRED: PRE_TOOL_USE [EventPush] | tool={inp.tool_name} <<<<<<")
         # NOTE: 暂不推送事件，避免与 rest_api._execute_plan() 中的推送重复
         # 后续清理 rest_api 冗余推送后再启用
         return HookResult(allow=True)
 
     async def on_tool_result(inp: HookInput) -> HookResult:
-        logger.info(f">>>>>> HOOK FIRED: POST_TOOL_USE [EventPush] | tool={inp.tool_name} <<<<<<")
+        # logger.info(f">>>>>> HOOK FIRED: POST_TOOL_USE [EventPush] | tool={inp.tool_name} <<<<<<")
         return HookResult()
 
     async def on_tool_failure(inp: HookInput) -> HookResult:
-        logger.info(f">>>>>> HOOK FIRED: POST_TOOL_USE_FAILURE [EventPush] | tool={inp.tool_name} <<<<<<")
+        # logger.info(f">>>>>> HOOK FIRED: POST_TOOL_USE_FAILURE [EventPush] | tool={inp.tool_name} <<<<<<")
         return HookResult()
 
     return [
@@ -72,7 +72,7 @@ def create_loop_detection_hooks(
     hash_counts: dict[str, int] = {}
 
     async def detect_loop(inp: HookInput) -> HookResult:
-        logger.info(f">>>>>> HOOK FIRED: PRE_TOOL_USE [LoopDetection] | tool={inp.tool_name} <<<<<<")
+        # logger.info(f">>>>>> HOOK FIRED: PRE_TOOL_USE [LoopDetection] | tool={inp.tool_name} <<<<<<")
         fingerprint = hashlib.md5(
             f"{inp.tool_name}:{inp.tool_input}".encode()
         ).hexdigest()
@@ -107,7 +107,7 @@ def create_loop_detection_hooks(
 
     async def reset_on_run(_inp: HookInput) -> HookResult:
         """每次 Agent 运行开始时重置检测状态"""
-        logger.info(">>>>>> HOOK FIRED: BEFORE_RUN [LoopDetection] | resetting state <<<<<<")
+        # logger.info(">>>>>> HOOK FIRED: BEFORE_RUN [LoopDetection] | resetting state <<<<<<")
         call_hashes.clear()
         hash_counts.clear()
         return HookResult()
@@ -126,7 +126,7 @@ def create_audit_hooks() -> list[Hook]:
     call_start_times: dict[str, float] = {}
 
     async def log_call(inp: HookInput) -> HookResult:
-        logger.info(f">>>>>> HOOK FIRED: PRE_TOOL_USE [AuditLogger] | tool={inp.tool_name} <<<<<<")
+        # logger.info(f">>>>>> HOOK FIRED: PRE_TOOL_USE [AuditLogger] | tool={inp.tool_name} <<<<<<")
         call_start_times[inp.tool_name] = time.monotonic()
         logger.info(
             f"[AUDIT] 工具调用开始 | tool={inp.tool_name} "
@@ -135,7 +135,7 @@ def create_audit_hooks() -> list[Hook]:
         return HookResult(allow=True)
 
     async def log_result(inp: HookInput) -> HookResult:
-        logger.info(f">>>>>> HOOK FIRED: POST_TOOL_USE [AuditLogger] | tool={inp.tool_name} <<<<<<")
+        # logger.info(f">>>>>> HOOK FIRED: POST_TOOL_USE [AuditLogger] | tool={inp.tool_name} <<<<<<")
         start = call_start_times.pop(inp.tool_name, None)
         elapsed = f"{time.monotonic() - start:.2f}s" if start else "unknown"
         logger.info(
@@ -146,7 +146,7 @@ def create_audit_hooks() -> list[Hook]:
         return HookResult()
 
     async def log_failure(inp: HookInput) -> HookResult:
-        logger.info(f">>>>>> HOOK FIRED: POST_TOOL_USE_FAILURE [AuditLogger] | tool={inp.tool_name} <<<<<<")
+        # logger.info(f">>>>>> HOOK FIRED: POST_TOOL_USE_FAILURE [AuditLogger] | tool={inp.tool_name} <<<<<<")
         start = call_start_times.pop(inp.tool_name, None)
         elapsed = f"{time.monotonic() - start:.2f}s" if start else "unknown"
         logger.error(
@@ -170,7 +170,7 @@ def create_token_tracker_hooks() -> list[Hook]:
     """Token 用量追踪（每次 LLM 调用后记录）"""
 
     async def track_tokens(inp: HookInput) -> HookResult:
-        logger.info(f">>>>>> HOOK FIRED: AFTER_MODEL_REQUEST [TokenTracker] | event={inp.event} <<<<<<")
+        # logger.info(f">>>>>> HOOK FIRED: AFTER_MODEL_REQUEST [TokenTracker] | event={inp.event} <<<<<<")
         return HookResult()
 
     return [

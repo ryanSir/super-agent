@@ -38,6 +38,10 @@ def configure_langfuse() -> None:
             secret_key=settings.langfuse.secret_key,
             host=settings.langfuse.host,
         )
+        # 抑制 OTel attributes 的 Omit 类型警告（Anthropic SDK 兼容性问题）
+        import logging
+        logging.getLogger("opentelemetry.attributes").setLevel(logging.ERROR)
+
         _enabled = True
         logger.info(f"Langfuse 初始化完成 | host={settings.langfuse.host}")
 
