@@ -115,7 +115,7 @@ def create_base_tools(workers: dict[str, Any]) -> list[Callable]:
         ctx: RunContext[Any],
         instruction: str,
         context_files: dict[str, str] | None = None,
-        timeout: int = 120,
+        timeout: int = 300,
     ) -> dict[str, Any]:
         """调用 SandboxWorker 在隔离环境中执行自定义代码片段
 
@@ -215,7 +215,10 @@ def create_base_tools(workers: dict[str, Any]) -> list[Callable]:
             f"主脚本: scripts/{main_script}\n"
             f"技能描述: {skill.metadata.description}\n"
             f"用户传入参数: {params_json}\n\n"
-            f"重要：请先阅读 SKILL.md 了解脚本的正确用法和参数格式，"
+            f"重要：所有文件已注入当前工作目录。\n"
+            f"- SKILL.md 在 ./SKILL.md\n"
+            f"- 脚本在 ./scripts/ 目录下\n"
+            f"请先阅读 ./SKILL.md 了解脚本的正确用法和参数格式，"
             f"然后根据文档说明构建正确的命令行来执行脚本。"
             f"不要直接把 JSON 作为参数传给脚本。\n"
             f"如果脚本需要依赖，先用 pip install 安装。"
@@ -229,7 +232,7 @@ def create_base_tools(workers: dict[str, Any]) -> list[Callable]:
             input_data={
                 "instruction": instruction,
                 "context_files": context_files,
-                "timeout": 120,
+                "timeout": (params or {}).get("timeout", 300),
             },
         )
 

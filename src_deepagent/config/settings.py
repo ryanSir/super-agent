@@ -107,7 +107,7 @@ class ReasoningSettings(BaseSettings):
     """推理引擎配置"""
 
     # LLM 主分类超时
-    llm_classify_timeout: float = Field(default=5.0, alias="REASONING_LLM_CLASSIFY_TIMEOUT")
+    llm_classify_timeout: float = Field(default=15.0, alias="REASONING_LLM_CLASSIFY_TIMEOUT")
 
     model_config = {"env_prefix": "", "extra": "ignore", "env_file": ".env"}
 
