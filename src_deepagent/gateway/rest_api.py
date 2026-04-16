@@ -415,19 +415,11 @@ async def _run_orchestration(
         if not answer:
             answer = _extract_last_text_from_result(result)
 
-        # 从 answer 中提取 <thinking> 标签内容，推送 thinking 事件
+        # 防御性清理：移除 answer 中可能残留的 thinking 标签
+        # （thinking 事件已由 EventPublishingCapability.after_model_request 发布）
         import re as _re
-        thinking_matches = _re.findall(r'<thinking>(.*?)</thinking>', answer, _re.DOTALL)
-        if thinking_matches:
-            thinking_content = "\n\n".join(m.strip() for m in thinking_matches)
-            await _publish(session_id, {
-                "event_type": "thinking",
-                "content": thinking_content,
-                "session_id": session_id,
-                "trace_id": trace_id,
-            })
-            # 从 answer 中移除 thinking 标签
-            answer = _re.sub(r'<thinking>.*?</thinking>\s*', '', answer, flags=_re.DOTALL).strip()
+        answer = _re.sub(r'<thinking>.*?</thinking>\s*', '', answer, flags=_re.DOTALL).strip()
+
         logger.info(
             f"结果提取 | session_id={session_id} "
             f"output_type={type(output).__name__} "
