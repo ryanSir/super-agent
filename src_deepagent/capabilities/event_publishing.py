@@ -28,8 +28,7 @@ def _infer_tool_type(tool_name: str) -> str:
     """根据工具名推断工具类型"""
     _SANDBOX_TOOLS = {"execute_sandbox", "run_code", "execute_code"}
     _NATIVE_TOOLS = {
-        "execute_rag_search", "execute_db_query", "execute_api_call",
-        "emit_chart", "recall_memory", "plan_and_decompose",
+        "emit_chart", "plan_and_decompose",
         "search_skills", "create_skill", "baidu_search",
     }
     _BUILTIN_TOOLS = {

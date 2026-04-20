@@ -18,9 +18,7 @@ from pydantic import BaseModel, Field
 class TaskType(str, enum.Enum):
     """任务类型"""
 
-    RAG_RETRIEVAL = "rag_retrieval"
-    DB_QUERY = "db_query"
-    API_CALL = "api_call"
+    WEB_SEARCH = "web_search"
     SANDBOX_CODING = "sandbox_coding"
     DATA_ANALYSIS = "data_analysis"
     SUB_AGENT_TASK = "sub_agent_task"

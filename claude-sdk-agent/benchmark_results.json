@@ -1,0 +1,47 @@
+[
+  {
+    "case_id": 10,
+    "name": "Skill: 专利法律状态查询",
+    "level": "skill",
+    "claude_cli": {
+      "agent": "Claude CLI",
+      "model": "claude-code",
+      "success": true,
+      "elapsed": 17.5,
+      "turns": 3,
+      "answer": "\n\nThe query completed successfully. Here's the legal status for patent **CN110245964A**:\n\n- **Current Status**: Rejected (Inactive)\n- **Legal Status Date**: 28 Oct 2022\n- **Family Status**: Inactive (PATSNAP family)\n\n**Legal Event Timeline** (INPADOC):\n\n| Date | Code | Description |\n|------|------|-------------|\n| 17 Sep 2019 | PB01 | Publication |\n| 15 Oct 2019 | SE01 | Entry into force of request for substantive examination |\n| 28 Oct 2022 | RJ01 | Rejection of invention patent application aft",
+      "cost": 0.5926389999999999,
+      "verified": true
+    }
+  },
+  {
+    "case_id": 11,
+    "name": "Skill: 发现并执行脚本",
+    "level": "skill",
+    "claude_cli": {
+      "agent": "Claude CLI",
+      "model": "claude-code",
+      "success": true,
+      "elapsed": 32.8,
+      "turns": 7,
+      "answer": "\n\n## Summary\n\n**Directory structure:**\n- `SKILL.md` — Skill documentation\n- `manifest.json` — Skill metadata (v1.0.0, owner: huangqing)\n- `scripts/legal_status.py` — Query script\n\n**What the skill does:**\nQueries the current legal status of a patent (Active/Lapsed/Pending/Rejected, etc.) via PatSnap's API. It's used for infringement risk analysis, FTO investigations, patent valuation, and due diligence.\n\n**Script usage:**\nTakes a patent publication number or PatSnap UUID as input, calls the PatS",
+      "cost": 1.012978,
+      "verified": true
+    }
+  },
+  {
+    "case_id": 12,
+    "name": "端到端: CLI 工具开发",
+    "level": "e2e",
+    "claude_cli": {
+      "agent": "Claude CLI",
+      "model": "claude-code",
+      "success": true,
+      "elapsed": 38.0,
+      "turns": 9,
+      "answer": "\n\nEverything's working. Created `wordcount.py` with wc-style output (lines, words, chars) and error handling for missing arguments, missing files, and permission errors. Tested all three scenarios — normal run on `sample.txt` returned `5 149 1003`, no-args showed usage message, and non-existent file gave a clear error. All exit with code 1 on errors.",
+      "cost": 1.1702029999999999,
+      "verified": true
+    }
+  }
+]

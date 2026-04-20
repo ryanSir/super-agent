@@ -31,9 +31,6 @@ router = APIRouter(prefix="/api/agent", tags=["agent"])
 
 _WORKER_REGISTRY: dict[str, tuple[str, str]] = {
     "sandbox_worker": ("src_deepagent.workers.sandbox.sandbox_worker", "SandboxWorker"),
-    # "rag_worker": ("src_deepagent.workers.native.rag_worker", "RAGWorker"),  # TODO: 缺少 embedding 环节，暂不可用
-    "db_query_worker": ("src_deepagent.workers.native.db_query_worker", "DBQueryWorker"),
-    "api_call_worker": ("src_deepagent.workers.native.api_call_worker", "APICallWorker"),
     "web_search_worker": ("src_deepagent.workers.native.web_search_worker", "WebSearchWorker"),
 }
 
@@ -236,14 +233,11 @@ async def _run_agent(
     from src_deepagent.orchestrator.reasoning_engine import ExecutionMode
     from src_deepagent.monitoring.langfuse_tracer import trace_span, update_current_span
 
-    # 只有 AUTO 和 SUB_AGENT 模式才需要 Sub-Agent 配置
-    if decision.mode in (ExecutionMode.AUTO, ExecutionMode.SUB_AGENT):
-        sub_agent_configs = create_sub_agent_configs(
-            agent_tools=decision.resources.agent_tools,
-            mcp_toolsets=decision.resources.mcp_toolsets,
-        )
-    else:
-        sub_agent_configs = []
+    # 始终创建 Sub-Agent 配置，让主 Agent 自主决定是否委派
+    sub_agent_configs = create_sub_agent_configs(
+        agent_tools=decision.resources.agent_tools,
+        mcp_toolsets=decision.resources.mcp_toolsets,
+    )
 
     agent, deps = create_orchestrator_agent(
         plan=decision,
@@ -253,7 +247,7 @@ async def _run_agent(
         publish_fn=lambda event: _publish(session_id, {**event, "session_id": session_id, "trace_id": trace_id}),
     )
 
-    effective_query = decision.prompt_prefix + request.query
+    effective_query = request.query
     _ctx = {"session_id": session_id, "trace_id": trace_id}
 
     with trace_span(
@@ -270,7 +264,7 @@ async def _run_agent(
                 "usage_limits": UsageLimits(request_limit=15), # 单次 Agent 运行最多向LLM发起的请求次数
             }
 
-            # Claude 模型按模式决定是否开启 extended thinking
+            # Claude 模型开启 extended thinking
             try:
                 from pydantic_ai.models.anthropic import AnthropicModelSettings
                 from anthropic.types.beta import BetaThinkingConfigEnabledParam
@@ -281,25 +275,13 @@ async def _run_agent(
                     ExecutionMode.SUB_AGENT: 16000,
                 }
                 max_tokens = _MAX_TOKENS.get(decision.mode, 8000)
-                if decision.mode != ExecutionMode.DIRECT:
-                    iter_kwargs["model_settings"] = AnthropicModelSettings(
-                        anthropic_thinking=BetaThinkingConfigEnabledParam(
-                            type="enabled",
-                            budget_tokens=max(1024, max_tokens // 4),
-                        ),
-                        max_tokens=max_tokens,
-                    )
-                else:
-                    iter_kwargs["model_settings"] = AnthropicModelSettings(
-                        anthropic_thinking=BetaThinkingConfigEnabledParam(
-                            type="enabled",
-                            budget_tokens=max(1024, max_tokens // 4),
-                        ),
-                        max_tokens=max_tokens,
-                    )
-                    # iter_kwargs["model_settings"] = AnthropicModelSettings(
-                    #     max_tokens=max_tokens,
-                    # )
+                iter_kwargs["model_settings"] = AnthropicModelSettings(
+                    anthropic_thinking=BetaThinkingConfigEnabledParam(
+                        type="enabled",
+                        budget_tokens=max(1024, max_tokens // 4),
+                    ),
+                    max_tokens=max_tokens,
+                )
             except Exception:
                 pass
 
@@ -313,28 +295,24 @@ async def _run_agent(
 
         except Exception as e:
             update_current_span(level="ERROR", status_message=str(e)[:500])
-            # 超限降级：从消息历史提取最后文本
-            if "usage_limit" in str(e).lower() or "request_limit" in str(e).lower():
-                logger.warning(f"请求次数超限，尝试提取已有结果 | session_id={session_id}")
-                last_text = _extract_last_text(run) if "run" in dir() else ""
-                if last_text:
-                    # 推送提取到的文本
-                    await _publish(session_id, {
-                        "event_type": "text_stream",
-                        "delta": last_text,
-                        "is_final": True,
-                        **_ctx,
-                    })
-                    from types import SimpleNamespace
-                    result = SimpleNamespace(output=last_text)
-                else:
-                    await _publish(session_id, {
-                        "event_type": "session_failed",
-                        "error": f"请求次数超限且无可用结果: {e}",
-                        **_ctx,
-                    })
-                    raise
+            # 兜底：尝试从已有消息历史提取最后文本（Agent 可能已完成工作但最后一次 model 调用失败）
+            last_text = _extract_last_text(run) if "run" in dir() else ""
+            if last_text:
+                logger.warning(f"Agent 执行异常但已有结果，降级提取 | session_id={session_id} error={e}")
+                await _publish(session_id, {
+                    "event_type": "text_stream",
+                    "delta": last_text,
+                    "is_final": True,
+                    **_ctx,
+                })
+                from types import SimpleNamespace
+                result = SimpleNamespace(output=last_text)
             else:
+                await _publish(session_id, {
+                    "event_type": "session_failed",
+                    "error": str(e)[:500],
+                    **_ctx,
+                })
                 raise
 
         logger.info(

@@ -13,13 +13,15 @@ from typing import Any
 warnings.filterwarnings("ignore", message=".*WebSearch local fallback.*")
 warnings.filterwarnings("ignore", message=".*WebFetch local fallback.*")
 
+from pydantic_deep.agent import create_deep_agent, create_default_deps
+from pydantic_deep.deps import StateBackend
+
 from src_deepagent.core.logging import get_logger
 from src_deepagent.llm.config import get_model
 from src_deepagent.orchestrator.hooks import create_hooks
 from src_deepagent.capabilities.event_publishing import EventPublishingCapability
 from src_deepagent.context.builder import build_dynamic_instructions
 from src_deepagent.orchestrator.reasoning_engine import ExecutionPlan
-from src_deepagent.schemas.agent import OrchestratorOutput
 
 logger = get_logger(__name__)
 
@@ -43,14 +45,6 @@ def create_orchestrator_agent(
     Returns:
         (agent, deps) 元组
     """
-    try:
-        from pydantic_deep.agent import create_deep_agent, create_default_deps
-        from pydantic_deep.deps import StateBackend
-    except ImportError:
-        logger.warning("pydantic-deep 未安装，使用 fallback 模式")
-        return _create_fallback_agent(plan, session_id, trace_id)
-
-    # 构建动态 system prompt
     from src_deepagent.config.settings import get_settings
 
     settings = get_settings()
@@ -91,8 +85,8 @@ def create_orchestrator_agent(
         except ImportError:
             logger.warning("pydantic_ai_shields 未安装，ToolGuard 不可用")
 
-    # DIRECT 模式用 fast 模型（速度快、成本低），复杂模式用 planning 模型
-    model_alias = "subagent" if plan.mode.value == "direct" else "orchestrator"
+    # 统一使用 orchestrator 模型，让主 Agent 拥有完整能力
+    model_alias = "orchestrator"
 
     # MCP toolsets（pydantic-ai MCPServer 实例）
     mcp_toolsets = plan.resources.mcp_toolsets
@@ -156,28 +150,3 @@ def create_orchestrator_agent(
         f"tools={len(plan.resources.agent_tools)}"
     )
     return agent, deps
-
-
-def _create_fallback_agent(
-    plan: ExecutionPlan,
-    session_id: str,
-    trace_id: str,
-) -> tuple[Any, Any]:
-    """Fallback: pydantic-deep 不可用时使用原生 PydanticAI"""
-    from pydantic_ai import Agent
-
-    agent = Agent(
-        model=get_model("orchestrator"),
-        output_type=OrchestratorOutput,
-        instructions="你是一个智能编排助手。pydantic-deep 未安装，功能受限。",
-        name="Orchestrator-Fallback",
-        retries=2,
-    )
-
-    # 注册桥接工具（合并所有分组）
-    for group_tools in plan.resources.agent_tools.values():
-        for tool_fn in group_tools:
-            agent.tool(tool_fn)
-
-    logger.warning("使用 Fallback Agent（pydantic-deep 未安装）")
-    return agent, {"session_id": session_id, "trace_id": trace_id}

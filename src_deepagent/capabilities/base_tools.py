@@ -16,7 +16,6 @@ from typing import Any, Callable
 from pydantic_ai import RunContext
 
 from src_deepagent.core.logging import get_logger
-from src_deepagent.memory.retriever import MemoryRetriever
 from src_deepagent.schemas.agent import RiskLevel, TaskNode, TaskType
 from src_deepagent.capabilities.skills.registry import skill_registry
 
@@ -32,78 +31,6 @@ def create_base_tools(workers: dict[str, Any]) -> dict[str, list[Callable]]:
     Returns:
         按职责分组的工具函数字典（native/sandbox/ui/memory/plan/skill_mgmt）
     """
-
-    async def execute_rag_search(ctx: RunContext[Any], query: str, top_k: int = 5) -> dict[str, Any]:
-        """调用 RAGWorker 进行向量检索
-
-        Args:
-            query: 检索查询文本
-            top_k: 返回结果数量
-        """
-        worker = workers.get("rag_worker")
-        if not worker:
-            return {"success": False, "error": "RAGWorker 不可用"}
-
-        task = TaskNode(
-            task_id=f"rag-{uuid.uuid4().hex[:8]}",
-            task_type=TaskType.RAG_RETRIEVAL,
-            input_data={"query": query, "top_k": top_k},
-        )
-        result = await worker.execute(task)
-        return result.model_dump()
-
-    async def execute_db_query(ctx: RunContext[Any], sql: str) -> dict[str, Any]:
-        """调用 DBQueryWorker 执行只读 SQL 查询
-
-        Args:
-            sql: SQL 查询语句（仅支持 SELECT）
-        """
-        worker = workers.get("db_query_worker")
-        if not worker:
-            return {"success": False, "error": "DBQueryWorker 不可用"}
-
-        task = TaskNode(
-            task_id=f"db-{uuid.uuid4().hex[:8]}",
-            task_type=TaskType.DB_QUERY,
-            input_data={"sql": sql},
-        )
-        result = await worker.execute(task)
-        return result.model_dump()
-
-    async def execute_api_call(
-        ctx: RunContext[Any],
-        url: str,
-        method: str = "GET",
-        headers: dict[str, str] | None = None,
-        body: dict[str, Any] | None = None,
-        params: dict[str, str] | None = None,
-    ) -> dict[str, Any]:
-        """调用 APICallWorker 发起 HTTP 请求
-
-        Args:
-            url: 请求 URL
-            method: HTTP 方法（GET/POST/PUT/DELETE）
-            headers: 请求头
-            body: 请求体（JSON）
-            params: URL 查询参数
-        """
-        worker = workers.get("api_call_worker")
-        if not worker:
-            return {"success": False, "error": "APICallWorker 不可用"}
-
-        task = TaskNode(
-            task_id=f"api-{uuid.uuid4().hex[:8]}",
-            task_type=TaskType.API_CALL,
-            input_data={
-                "url": url,
-                "method": method,
-                "headers": headers or {},
-                "body": body,
-                "params": params,
-            },
-        )
-        result = await worker.execute(task)
-        return result.model_dump()
 
     async def execute_sandbox(
         ctx: RunContext[Any],
@@ -281,20 +208,6 @@ def create_base_tools(workers: dict[str, Any]) -> dict[str, list[Callable]]:
             },
         }
 
-    async def recall_memory(ctx: RunContext[Any], user_id: str) -> dict[str, Any]:
-        """从 Redis 检索用户记忆
-
-        Args:
-            user_id: 用户 ID
-        """
-        try:
-            retriever = MemoryRetriever()
-            memory_text = await retriever.retrieve(user_id)
-            return {"success": True, "data": {"memory": memory_text}}
-        except Exception as e:
-            logger.warning(f"记忆检索失败 | user_id={user_id} error={e}")
-            return {"success": True, "data": {"memory": ""}}
-
     async def plan_and_decompose(
         ctx: RunContext[Any],
         query: str,
@@ -373,7 +286,7 @@ def create_base_tools(workers: dict[str, Any]) -> dict[str, list[Callable]]:
         logger.info(f"百度搜索 | query={query} count={count} freshness={freshness}")
         task = TaskNode(
             task_id=f"search-{uuid.uuid4().hex[:8]}",
-            task_type=TaskType.API_CALL,
+            task_type=TaskType.WEB_SEARCH,
             input_data={"query": query, "count": count, "freshness": freshness},
         )
         result = await worker.execute(task)
@@ -418,10 +331,10 @@ def create_base_tools(workers: dict[str, Any]) -> dict[str, list[Callable]]:
 
     # 按职责分组，为后续 Toolset 化重构铺路
     return {
-        "native": [execute_rag_search, execute_db_query, execute_api_call, baidu_search],
+        "native": [baidu_search],
         "sandbox": [execute_sandbox, execute_skill],
         "ui": [emit_chart],
-        "memory": [recall_memory],
+        "memory": [],
         "plan": [plan_and_decompose],
         "skill_mgmt": [create_skill],
     }

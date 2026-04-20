@@ -12,8 +12,6 @@ RESEARCH_INSTRUCTIONS = """\
 根据指令搜索、检索相关信息，并综合整理成结构化的结果。
 
 ## 可用工具
-- execute_rag_search: 向量检索，从知识库中搜索相关文档
-- execute_api_call: HTTP API 调用，获取外部数据
 - execute_skill: 执行已注册的技能（如论文搜索）
 - search_skills: 搜索可用技能
 - execute_sandbox: 在沙箱中执行代码或脚本
@@ -37,8 +35,6 @@ ANALYSIS_INSTRUCTIONS = """\
 对数据进行深度分析、发现趋势和洞察、生成可视化图表。
 
 ## 可用工具
-- execute_db_query: 执行 SQL 查询获取数据（仅支持 SELECT）
-- execute_rag_search: 从知识库检索补充信息
 - execute_sandbox: 在沙箱中运行数据处理脚本
 - emit_chart: 渲染 ECharts 图表到前端
 
