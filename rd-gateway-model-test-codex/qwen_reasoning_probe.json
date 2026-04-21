@@ -1,0 +1,36 @@
+{
+  "qwen3.5-plus": {
+    "non_stream": {
+      "request_ok": true,
+      "latency_ms": 8445,
+      "status_code": 200,
+      "content_non_empty": true,
+      "reasoning_support": "content_exposed",
+      "reasoning_evidence": [
+        "$.choices[0].message.reasoning_content=\"Thinking Process:\\n\\n1.  **Analyze the Request:**\\n    *   Task: Calculate 37 multiplied by 19 (37 乘以 19 等于多少).\\n    * ",
+        "$.usage.completion_tokens_details.reasoning_tokens=424"
+      ],
+      "error": null
+    },
+    "stream": {
+      "request_ok": true,
+      "latency_ms": 12774,
+      "status_code": 200,
+      "chunk_received": true,
+      "finish_reason_present": true,
+      "content_reconstructed": true,
+      "reasoning_support": "content_exposed",
+      "reasoning_evidence": [
+        "$.choices[0].delta.reasoning_content=\"Thinking\"",
+        "$.choices[0].delta.reasoning_content=\" Process:\\n\\n1\"",
+        "$.choices[0].delta.reasoning_content=\".  **An\"",
+        "$.choices[0].delta.reasoning_content=\"alyze the Request:**\"",
+        "$.choices[0].delta.reasoning_content=\"\\n    *  \"",
+        "$.choices[0].delta.reasoning_content=\" Question: What\"",
+        "$.choices[0].delta.reasoning_content=\" is 37\"",
+        "$.choices[0].delta.reasoning_content=\" multiplied by 1\""
+      ],
+      "error": null
+    }
+  }
+}

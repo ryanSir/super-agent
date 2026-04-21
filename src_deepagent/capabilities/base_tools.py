@@ -221,7 +221,7 @@ def create_base_tools(workers: dict[str, Any]) -> dict[str, list[Callable]]:
             query: 用户查询
             context: 附加上下文
         """
-        from src_deepagent.llm.config import get_model
+        from src_deepagent.llm.registry import get_model_for_role
         from src_deepagent.orchestrator.planning import PLANNING_PROMPT
 
         logger.info(f"任务规划 | query={query[:80]}")
@@ -230,7 +230,7 @@ def create_base_tools(workers: dict[str, Any]) -> dict[str, list[Callable]]:
             from pydantic_ai import Agent
 
             planner = Agent(
-                model=get_model("orchestrator"),
+                model=get_model_for_role("planner"),
                 output_type=list[dict[str, Any]],
                 instructions=PLANNING_PROMPT,
                 name="Planner",

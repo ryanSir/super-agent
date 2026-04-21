@@ -1,0 +1,147 @@
+{
+  "qwen3.5-plus": [
+    {
+      "dimension": "D1",
+      "status": "PASS",
+      "path": "openai",
+      "latency_ms": 4630,
+      "checks": {
+        "has_choice": true,
+        "role_assistant": true,
+        "content_non_empty": true,
+        "finish_reason_stop": true
+      },
+      "error": null,
+      "notes": [
+        "content=OK"
+      ]
+    },
+    {
+      "dimension": "D2",
+      "status": "FAIL",
+      "path": "openai",
+      "latency_ms": 100284,
+      "checks": {
+        "chunk_received": false,
+        "delta_present": false,
+        "finish_reason_present": false,
+        "content_reconstructed": false
+      },
+      "error": null,
+      "notes": [
+        "lenient SSE parse: PASS — gateway returns 'data:' without trailing space (non-standard)",
+        "lenient_stream_text=stream_text=抱歉，因无法获取您的实时位置，我无法告知今日的具体天气。"
+      ]
+    },
+    {
+      "dimension": "D3",
+      "status": "PASS",
+      "path": "openai",
+      "latency_ms": 1824,
+      "checks": {
+        "tool_calls_present": true,
+        "tool_name_match": true,
+        "arguments_valid_json": true,
+        "finish_reason_tool_calls": true
+      },
+      "error": null,
+      "notes": [
+        "args={\"city\": \"北京\"}"
+      ]
+    },
+    {
+      "dimension": "D4",
+      "status": "PASS",
+      "path": "openai",
+      "latency_ms": 3101,
+      "checks": {
+        "at_least_two_tools": true,
+        "distinct_tool_ids": true,
+        "expected_tool_names": true,
+        "all_arguments_valid_json": true
+      },
+      "error": null,
+      "notes": [
+        "tool_names=get_weather,get_time"
+      ]
+    },
+    {
+      "dimension": "D5",
+      "status": "PASS",
+      "path": "openai",
+      "latency_ms": 12893,
+      "checks": {
+        "first_turn_tool_call": true,
+        "second_turn_text": true,
+        "references_tool_result": true
+      },
+      "error": null,
+      "notes": [
+        "roundtrip_text=北京今日天气晴朗，气温22摄氏度，东北风2级，适宜户外活动。"
+      ]
+    },
+    {
+      "dimension": "D6",
+      "status": "PASS",
+      "path": "openai",
+      "latency_ms": 6015,
+      "checks": {
+        "tool_called": true,
+        "valid_json": true,
+        "schema_valid": true,
+        "required_fields_present": true
+      },
+      "error": null,
+      "notes": [
+        "parsed={\"channel\": \"email\", \"priority\": \"high\", \"target\": {\"team\": \"platform\", \"region\": \"cn\"}, \"tags\": [\"gateway\", \"urgent\"]}"
+      ]
+    },
+    {
+      "dimension": "D7",
+      "status": "PASS",
+      "path": "openai",
+      "latency_ms": 5866,
+      "checks": {
+        "content_non_empty": true,
+        "contains_name": true
+      },
+      "error": null,
+      "notes": [
+        "answer=张三"
+      ]
+    },
+    {
+      "dimension": "D8",
+      "status": "PASS",
+      "path": "openai",
+      "latency_ms": 32636,
+      "checks": {
+        "content_non_empty": true,
+        "reasoning_present": true
+      },
+      "error": null,
+      "notes": [
+        "reasoning=Here's a thinking process that leads to the solution:\n\n1.  **Analyze the Request:**\n    *   **Given:**\n        *   Inlet",
+        "content=这是一个经典的工程问题，我们可以分步来计算：\n\n**第一步：计算每小时的总进水量**\n进水管 A 每小时注入 3 吨，进水管 B 每小时注入 2 吨。\n如果两个"
+      ]
+    },
+    {
+      "dimension": "D9",
+      "status": "PASS",
+      "path": "openai",
+      "latency_ms": 19367,
+      "checks": {
+        "chunk_received": true,
+        "reasoning_delta_present": true,
+        "content_delta_present": true,
+        "reasoning_reconstructed": true,
+        "content_reconstructed": true
+      },
+      "error": null,
+      "notes": [
+        "reasoning=Here's a thinking process that leads to the solution:\n\n1.  **Analyze the Request:**\n    *   **Given:** A water tank with",
+        "content=这是一个经典的工程问题，我们可以分步来计算：\n\n**第一步：计算每小时的净注水量**\n我们需要把所有进水和出水的情况综合起来，看水池每小时实际增加了多少水。\n*"
+      ]
+    }
+  ]
+}

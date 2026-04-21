@@ -11,7 +11,7 @@ from typing import Any, Callable
 
 from src_deepagent.config.settings import get_settings
 from src_deepagent.core.logging import get_logger
-from src_deepagent.llm.config import get_model
+from src_deepagent.llm.registry import get_model_for_role
 from src_deepagent.agents.roles import (
     ANALYSIS_INSTRUCTIONS,
     RESEARCH_INSTRUCTIONS,
@@ -74,7 +74,7 @@ def _create_base_subagent_config(
         "name": name,
         "description": description,
         "instructions": instructions,
-        "model": get_model("subagent"),
+        "model": get_model_for_role("subagent"),
         "include_todo": True,
         "include_filesystem": False,
         "include_subagents": False,
@@ -138,7 +138,8 @@ def _load_custom_configs(
 
         if not custom_agent_registry._scanned:
             custom_agent_registry.scan(agents_dir)
-        return custom_agent_registry.to_sub_agent_configs(tools, mcp_toolsets, skill_dir)
+        tool_map = {getattr(tool, "__name__", f"tool_{idx}"): tool for idx, tool in enumerate(tools)}
+        return custom_agent_registry.to_sub_agent_configs(tool_map)
     except Exception as e:
         logger.warning(f"自定义 Agent 加载跳过 | error={e}")
         return []

@@ -1,0 +1,85 @@
+{
+  "gpt-5.4": [
+    {
+      "dimension": "D1",
+      "status": "FAIL",
+      "path": "anthropic",
+      "latency_ms": 669,
+      "checks": {},
+      "error": "Error code: 400 - {'type': 'error', 'error': {'type': 'common_error', 'message': \"error, status code: 400, status: 400 Bad Request, message: Unsupported value: 'top_p' must be greater than 0 and less than or equal to 1 with this model.\"}}",
+      "notes": []
+    },
+    {
+      "dimension": "D2",
+      "status": "FAIL",
+      "path": "anthropic",
+      "latency_ms": 703,
+      "checks": {},
+      "error": "Client error '400 Bad Request' for url 'http://rd-gateway.patsnap.info/v1/messages'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400",
+      "notes": []
+    },
+    {
+      "dimension": "D3",
+      "status": "FAIL",
+      "path": "anthropic",
+      "latency_ms": 393,
+      "checks": {},
+      "error": "Error code: 400 - {'type': 'error', 'error': {'type': 'common_error', 'message': \"error, status code: 400, status: 400 Bad Request, message: Unsupported value: 'top_p' must be greater than 0 and less than or equal to 1 with this model.\"}}",
+      "notes": []
+    },
+    {
+      "dimension": "D4",
+      "status": "FAIL",
+      "path": "anthropic",
+      "latency_ms": 387,
+      "checks": {},
+      "error": "Error code: 400 - {'type': 'error', 'error': {'type': 'common_error', 'message': \"error, status code: 400, status: 400 Bad Request, message: Unsupported value: 'top_p' must be greater than 0 and less than or equal to 1 with this model.\"}}",
+      "notes": []
+    },
+    {
+      "dimension": "D5",
+      "status": "FAIL",
+      "path": "anthropic",
+      "latency_ms": 397,
+      "checks": {},
+      "error": "Error code: 400 - {'type': 'error', 'error': {'type': 'common_error', 'message': \"error, status code: 400, status: 400 Bad Request, message: Unsupported value: 'top_p' must be greater than 0 and less than or equal to 1 with this model.\"}}",
+      "notes": []
+    },
+    {
+      "dimension": "D6",
+      "status": "FAIL",
+      "path": "anthropic",
+      "latency_ms": 732,
+      "checks": {},
+      "error": "Error code: 400 - {'type': 'error', 'error': {'type': 'common_error', 'message': \"error, status code: 400, status: 400 Bad Request, message: Unsupported value: 'top_p' must be greater than 0 and less than or equal to 1 with this model.\"}}",
+      "notes": []
+    },
+    {
+      "dimension": "D7",
+      "status": "FAIL",
+      "path": "anthropic",
+      "latency_ms": 382,
+      "checks": {},
+      "error": "Error code: 400 - {'type': 'error', 'error': {'type': 'common_error', 'message': \"error, status code: 400, status: 400 Bad Request, message: Unsupported value: 'top_p' must be greater than 0 and less than or equal to 1 with this model.\"}}",
+      "notes": []
+    },
+    {
+      "dimension": "D8",
+      "status": "FAIL",
+      "path": "anthropic",
+      "latency_ms": 477,
+      "checks": {},
+      "error": "Error code: 400 - {'type': 'error', 'error': {'type': 'common_error', 'message': \"error, status code: 400, status: 400 Bad Request, message: Unsupported value: 'top_p' must be greater than 0 and less than or equal to 1 with this model.\"}}",
+      "notes": []
+    },
+    {
+      "dimension": "D9",
+      "status": "FAIL",
+      "path": "anthropic",
+      "latency_ms": 435,
+      "checks": {},
+      "error": "Client error '400 Bad Request' for url 'http://rd-gateway.patsnap.info/v1/messages'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400",
+      "notes": []
+    }
+  ]
+}

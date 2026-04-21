@@ -16,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src_deepagent.config.settings import get_settings
 from src_deepagent.core.logging import get_logger
 from src_deepagent.gateway import rest_api, websocket_api
+from src_deepagent.llm.catalog import load_catalog
 from src_deepagent.llm.config import configure_litellm
 from src_deepagent.monitoring.langfuse_tracer import configure_langfuse, shutdown as langfuse_shutdown
 
@@ -30,6 +31,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     # 初始化 LiteLLM
     configure_litellm()
+
+    # 初始化模型目录
+    load_catalog(settings.llm.config_path)
 
     # 初始化 Langfuse 追踪
     configure_langfuse()

@@ -1,0 +1,130 @@
+{
+  "claude-4.7-opus": [
+    {
+      "dimension": "D1",
+      "status": "PASS",
+      "path": "anthropic",
+      "latency_ms": 1117,
+      "checks": {
+        "role_assistant": true,
+        "content_non_empty": true,
+        "stop_reason_end_turn": true
+      },
+      "error": null,
+      "notes": [
+        "content=OK"
+      ]
+    },
+    {
+      "dimension": "D2",
+      "status": "PASS",
+      "path": "anthropic",
+      "latency_ms": 1439,
+      "checks": {
+        "chunk_received": true,
+        "delta_present": true,
+        "finish_reason_present": true,
+        "content_reconstructed": true
+      },
+      "error": null,
+      "notes": [
+        "stream_text=今天天气晴朗,微风徐徐,气温宜人。"
+      ]
+    },
+    {
+      "dimension": "D3",
+      "status": "PASS",
+      "path": "anthropic",
+      "latency_ms": 1902,
+      "checks": {
+        "tool_calls_present": true,
+        "tool_name_match": true,
+        "arguments_valid_json": true,
+        "finish_reason_tool_use": true
+      },
+      "error": null,
+      "notes": [
+        "args={\"city\": \"北京\"}"
+      ]
+    },
+    {
+      "dimension": "D4",
+      "status": "PASS",
+      "path": "anthropic",
+      "latency_ms": 1892,
+      "checks": {
+        "at_least_two_tools": true,
+        "distinct_tool_ids": true,
+        "expected_tool_names": true,
+        "all_arguments_valid_json": true
+      },
+      "error": null,
+      "notes": [
+        "tool_names=get_weather,get_time"
+      ]
+    },
+    {
+      "dimension": "D5",
+      "status": "PASS",
+      "path": "anthropic",
+      "latency_ms": 4383,
+      "checks": {
+        "first_turn_tool_call": true,
+        "second_turn_text": true,
+        "references_tool_result": true
+      },
+      "error": null,
+      "notes": [
+        "roundtrip_text=总结：北京今天天气不错，晴朗舒适，气温 22°C，东北风 2 级，适合外出活动。"
+      ]
+    },
+    {
+      "dimension": "D6",
+      "status": "PASS",
+      "path": "anthropic",
+      "latency_ms": 1862,
+      "checks": {
+        "tool_called": true,
+        "valid_json": true,
+        "schema_valid": true,
+        "required_fields_present": true
+      },
+      "error": null,
+      "notes": [
+        "parsed={\"channel\": \"email\", \"priority\": \"high\", \"tags\": [\"gateway\", \"urgent\"], \"target\": {\"region\": \"cn\", \"team\": \"platform\"}}"
+      ]
+    },
+    {
+      "dimension": "D7",
+      "status": "PASS",
+      "path": "anthropic",
+      "latency_ms": 1251,
+      "checks": {
+        "content_non_empty": true,
+        "contains_name": true
+      },
+      "error": null,
+      "notes": [
+        "answer=张三"
+      ]
+    },
+    {
+      "dimension": "D8",
+      "status": "FAIL",
+      "path": "anthropic",
+      "latency_ms": 651,
+      "checks": {},
+      "error": "Error code: 400 - {'type': 'error', 'error': {'type': 'InvokeModel', 'message': 'operation error Bedrock Runtime: InvokeModel, https response error StatusCode: 400, RequestID: 026e1a9e-563e-4ab8-8e0c-cc88ad92ecaa, ValidationException: {\"type\":\"error\",\"request_id\":\"req_ivtmhsbtizp6clgxhtt5mopfahjfpxjiltnlcnfpgyqqla6dzx3a\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"\\\\\"thinking.type.enabled\\\\\" is not supported for this model. Use \\\\\"thinking.type.adaptive\\\\\" and \\\\\"output_config.effort\\\\\" to control thinking behavior.\"}}'}}",
+      "notes": []
+    },
+    {
+      "dimension": "D9",
+      "status": "FAIL",
+      "path": "anthropic",
+      "latency_ms": 1021,
+      "checks": {},
+      "error": "Client error '400 Bad Request' for url 'http://rd-gateway.patsnap.info/v1/messages'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400",
+      "notes": []
+    }
+  ]
+}

@@ -8,12 +8,17 @@ from __future__ import annotations
 
 import importlib
 import uuid
+from collections.abc import AsyncIterable
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
+from pydantic_ai.messages import PartDeltaEvent, PartStartEvent, TextPartDelta, ThinkingPartDelta
 
+from src_deepagent.config.settings import get_settings
 from src_deepagent.core.logging import get_logger, session_id_var, trace_id_var
+from src_deepagent.llm.catalog import reload_catalog
+from src_deepagent.llm.registry import get_model_bundle
 from src_deepagent.orchestrator.agent_factory import create_orchestrator_agent
 from src_deepagent.orchestrator.reasoning_engine import ReasoningEngine
 from src_deepagent.schemas.agent import OrchestratorOutput, SessionStatus
@@ -190,6 +195,18 @@ async def reload_mcp() -> dict:
     return {"success": True, "tool_count": tool_count}
 
 
+@router.post("/admin/reload-models")
+async def reload_models() -> dict:
+    """手动触发模型目录重载（运维接口）"""
+    catalog = reload_catalog()
+    return {
+        "success": True,
+        "providers": list(catalog.providers.keys()),
+        "models": list(catalog.models.keys()),
+        "roles": catalog.roles,
+    }
+
+
 # ── 编排执行 ─────────────────────────────────────────────
 
 
@@ -228,9 +245,7 @@ async def _run_agent(
     message_history: list[Any] | None = None,
 ) -> Any:
     """根据推理决策创建并运行 Agent，流式推送 A2UI 事件，返回 agent result"""
-    from pydantic_ai._agent_graph import End
     from pydantic_ai.usage import UsageLimits
-    from src_deepagent.orchestrator.reasoning_engine import ExecutionMode
     from src_deepagent.monitoring.langfuse_tracer import trace_span, update_current_span
 
     # 始终创建 Sub-Agent 配置，让主 Agent 自主决定是否委派
@@ -249,6 +264,7 @@ async def _run_agent(
 
     effective_query = request.query
     _ctx = {"session_id": session_id, "trace_id": trace_id}
+    settings = get_settings()
 
     with trace_span(
         name="agent_query",
@@ -264,34 +280,31 @@ async def _run_agent(
                 "usage_limits": UsageLimits(request_limit=15), # 单次 Agent 运行最多向LLM发起的请求次数
             }
 
-            # Claude 模型开启 extended thinking
-            try:
-                from pydantic_ai.models.anthropic import AnthropicModelSettings
-                from anthropic.types.beta import BetaThinkingConfigEnabledParam
-                _MAX_TOKENS = {
-                    ExecutionMode.DIRECT: 4000,
-                    ExecutionMode.AUTO: 8000,
-                    ExecutionMode.PLAN_AND_EXECUTE: 16000,
-                    ExecutionMode.SUB_AGENT: 16000,
-                }
-                max_tokens = _MAX_TOKENS.get(decision.mode, 8000)
-                iter_kwargs["model_settings"] = AnthropicModelSettings(
-                    anthropic_thinking=BetaThinkingConfigEnabledParam(
-                        type="enabled",
-                        budget_tokens=max(1024, max_tokens // 4),
+            bundle = get_model_bundle("orchestrator", decision.mode.value)
+            if bundle.model_settings:
+                iter_kwargs["model_settings"] = bundle.model_settings
+
+            if settings.llm.true_streaming_enabled:
+                result = await agent.run(
+                    effective_query,
+                    **iter_kwargs,
+                    event_stream_handler=_build_event_stream_handler(
+                        session_id,
+                        trace_id,
+                        reasoning_format=bundle.profile.reasoning_format,
                     ),
-                    max_tokens=max_tokens,
                 )
-            except Exception:
-                pass
+            else:
+                async with agent.iter(effective_query, **iter_kwargs) as run:
+                    from pydantic_ai._agent_graph import End
 
-            async with agent.iter(effective_query, **iter_kwargs) as run:
-                async for node in run:
-                    if isinstance(node, End):
-                        break
+                    async for node in run:
+                        if isinstance(node, End):
+                            break
 
-                result = run.result
-                update_current_span(output={"result_type": type(result.output).__name__})
+                    result = run.result
+
+            update_current_span(output={"result_type": type(result.output).__name__})
 
         except Exception as e:
             update_current_span(level="ERROR", status_message=str(e)[:500])
@@ -322,6 +335,113 @@ async def _run_agent(
         )
 
         return result
+
+
+def _build_event_stream_handler(
+    session_id: str,
+    trace_id: str,
+    *,
+    reasoning_format: str = "none",
+):
+    """构建真正的流式事件处理器。"""
+    llm_settings = get_settings().llm
+    parse_thinking_tags = reasoning_format == "inline_thinking_tags"
+    in_thinking_block = False
+    pending_text = ""
+
+    async def _publish_text_delta(text: str) -> None:
+        if not text or not llm_settings.stream_text_enabled:
+            return
+        await _publish(session_id, {
+            "event_type": "text_stream",
+            "delta": text,
+            "is_final": False,
+            "session_id": session_id,
+            "trace_id": trace_id,
+        })
+
+    async def _publish_thinking_delta(text: str) -> None:
+        if not text or not llm_settings.stream_thinking_enabled:
+            return
+        await _publish(session_id, {
+            "event_type": "thinking",
+            "content": text,
+            "session_id": session_id,
+            "trace_id": trace_id,
+        })
+
+    async def _handle_text_delta(raw_text: str) -> None:
+        nonlocal in_thinking_block, pending_text
+        if not raw_text:
+            return
+        if not parse_thinking_tags:
+            await _publish_text_delta(raw_text)
+            return
+
+        pending_text += raw_text
+        while pending_text:
+            if in_thinking_block:
+                end_idx = pending_text.find("</thinking>")
+                if end_idx == -1:
+                    safe_len = max(0, len(pending_text) - len("</thinking>") + 1)
+                    if safe_len == 0:
+                        break
+                    await _publish_thinking_delta(pending_text[:safe_len])
+                    pending_text = pending_text[safe_len:]
+                    break
+                await _publish_thinking_delta(pending_text[:end_idx])
+                pending_text = pending_text[end_idx + len("</thinking>"):]
+                in_thinking_block = False
+            else:
+                start_idx = pending_text.find("<thinking>")
+                if start_idx == -1:
+                    safe_len = max(0, len(pending_text) - len("<thinking>") + 1)
+                    if safe_len == 0:
+                        break
+                    await _publish_text_delta(pending_text[:safe_len])
+                    pending_text = pending_text[safe_len:]
+                    break
+                if start_idx > 0:
+                    await _publish_text_delta(pending_text[:start_idx])
+                pending_text = pending_text[start_idx + len("<thinking>"):]
+                in_thinking_block = True
+
+    async def _handler(ctx: Any, events: AsyncIterable[Any]) -> None:
+        async for event in events:
+            if isinstance(event, PartStartEvent):
+                part = event.part
+                part_kind = getattr(part, "part_kind", "")
+                content = getattr(part, "content", None)
+                if reasoning_format == "reasoning_content":
+                    logger.info(
+                        f"reasoning_content 调试 PartStart | session_id={session_id} trace_id={trace_id} "
+                        f"part_kind={part_kind} part_type={type(part).__name__} "
+                        f"content_preview={str(content)[:120] if content is not None else ''}"
+                    )
+                if llm_settings.stream_thinking_enabled and part_kind == "thinking" and content:
+                    await _publish_thinking_delta(content)
+                elif part_kind == "text" and isinstance(content, str) and content:
+                    await _handle_text_delta(content)
+            elif isinstance(event, PartDeltaEvent):
+                delta = event.delta
+                if reasoning_format == "reasoning_content":
+                    logger.info(
+                        f"reasoning_content 调试 PartDelta | session_id={session_id} trace_id={trace_id} "
+                        f"delta_type={type(delta).__name__} "
+                        f"delta_preview={getattr(delta, 'content_delta', None) or getattr(delta, 'args_delta', None) or ''}"
+                    )
+                if llm_settings.stream_thinking_enabled and isinstance(delta, ThinkingPartDelta) and delta.content_delta:
+                    await _publish_thinking_delta(delta.content_delta)
+                elif isinstance(delta, TextPartDelta) and delta.content_delta:
+                    await _handle_text_delta(delta.content_delta)
+
+        if parse_thinking_tags and pending_text:
+            if in_thinking_block:
+                await _publish_thinking_delta(pending_text)
+            else:
+                await _publish_text_delta(pending_text)
+
+    return _handler
 
 
 async def _run_orchestration(

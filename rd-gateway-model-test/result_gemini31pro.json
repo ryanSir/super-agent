@@ -1,0 +1,109 @@
+{
+  "gemini-3.1-pro-preview": [
+    {
+      "dimension": "D1",
+      "status": "FAIL",
+      "path": "openai",
+      "latency_ms": 3050,
+      "checks": {},
+      "error": "Error code: 429 - {'error': {'http_code': 429, 'code': 'RESOURCE_EXHAUSTED', 'message': 'Resource has been exhausted (e.g. check quota).', 'param': '', 'type': 'RESOURCE_EXHAUSTED'}}",
+      "notes": []
+    },
+    {
+      "dimension": "D2",
+      "status": "FAIL",
+      "path": "openai",
+      "latency_ms": 15789,
+      "checks": {
+        "chunk_received": false,
+        "delta_present": false,
+        "finish_reason_present": false,
+        "content_reconstructed": false
+      },
+      "error": null,
+      "notes": [
+        "lenient SSE parse: PASS — gateway returns 'data:' without trailing space (non-standard)",
+        "lenient_stream_text=stream_text=今天的天气还需要您推开窗"
+      ]
+    },
+    {
+      "dimension": "D3",
+      "status": "PARTIAL",
+      "path": "openai",
+      "latency_ms": 4360,
+      "checks": {
+        "tool_calls_present": true,
+        "tool_name_match": true,
+        "arguments_valid_json": true,
+        "finish_reason_tool_calls": false
+      },
+      "error": null,
+      "notes": [
+        "args={\"city\":\"北京\"}"
+      ]
+    },
+    {
+      "dimension": "D4",
+      "status": "FAIL",
+      "path": "openai",
+      "latency_ms": 2869,
+      "checks": {},
+      "error": "Error code: 429 - {'error': {'http_code': 429, 'code': 'RESOURCE_EXHAUSTED', 'message': 'Resource has been exhausted (e.g. check quota).', 'param': '', 'type': 'RESOURCE_EXHAUSTED'}}",
+      "notes": []
+    },
+    {
+      "dimension": "D5",
+      "status": "FAIL",
+      "path": "openai",
+      "latency_ms": 2797,
+      "checks": {},
+      "error": "Error code: 429 - {'error': {'http_code': 429, 'code': 'RESOURCE_EXHAUSTED', 'message': 'Resource has been exhausted (e.g. check quota).', 'param': '', 'type': 'RESOURCE_EXHAUSTED'}}",
+      "notes": []
+    },
+    {
+      "dimension": "D6",
+      "status": "FAIL",
+      "path": "openai",
+      "latency_ms": 2741,
+      "checks": {},
+      "error": "Error code: 429 - {'error': {'http_code': 429, 'code': 'RESOURCE_EXHAUSTED', 'message': 'Resource has been exhausted (e.g. check quota).', 'param': '', 'type': 'RESOURCE_EXHAUSTED'}}",
+      "notes": []
+    },
+    {
+      "dimension": "D7",
+      "status": "FAIL",
+      "path": "openai",
+      "latency_ms": 2553,
+      "checks": {},
+      "error": "Error code: 429 - {'error': {'http_code': 429, 'code': 'RESOURCE_EXHAUSTED', 'message': 'Resource has been exhausted (e.g. check quota).', 'param': '', 'type': 'RESOURCE_EXHAUSTED'}}",
+      "notes": []
+    },
+    {
+      "dimension": "D8",
+      "status": "FAIL",
+      "path": "openai",
+      "latency_ms": 471,
+      "checks": {},
+      "error": "Client error '429 Too Many Requests' for url 'http://rd-gateway.patsnap.info/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429",
+      "notes": []
+    },
+    {
+      "dimension": "D9",
+      "status": "UNSUPPORTED",
+      "path": "openai",
+      "latency_ms": 10183,
+      "checks": {
+        "chunk_received": true,
+        "reasoning_delta_present": false,
+        "content_delta_present": true,
+        "reasoning_reconstructed": false,
+        "content_reconstructed": true
+      },
+      "error": null,
+      "notes": [
+        "content=这是一个非常经典的工程（水池进出水）",
+        "model does not return reasoning_content delta"
+      ]
+    }
+  ]
+}

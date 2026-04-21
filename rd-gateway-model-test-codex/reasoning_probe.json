@@ -1,0 +1,263 @@
+{
+  "gpt-5.4": {
+    "non_stream": {
+      "request_ok": true,
+      "latency_ms": 928,
+      "status_code": 200,
+      "content_non_empty": true,
+      "reasoning_support": "absent",
+      "reasoning_evidence": [],
+      "error": null
+    },
+    "stream": {
+      "request_ok": true,
+      "latency_ms": 1041,
+      "status_code": 200,
+      "chunk_received": true,
+      "finish_reason_present": true,
+      "content_reconstructed": true,
+      "reasoning_support": "placeholder_only",
+      "reasoning_evidence": [
+        "$.choices[0].delta.reasoning_content=null",
+        "$.choices[0].delta.reasoning_content=null",
+        "$.choices[0].delta.reasoning_content=null",
+        "$.choices[0].delta.reasoning_content=null",
+        "$.choices[0].delta.reasoning_content=null"
+      ],
+      "error": null
+    }
+  },
+  "gpt-4o": {
+    "non_stream": {
+      "request_ok": true,
+      "latency_ms": 915,
+      "status_code": 200,
+      "content_non_empty": true,
+      "reasoning_support": "absent",
+      "reasoning_evidence": [],
+      "error": null
+    },
+    "stream": {
+      "request_ok": true,
+      "latency_ms": 731,
+      "status_code": 200,
+      "chunk_received": true,
+      "finish_reason_present": true,
+      "content_reconstructed": true,
+      "reasoning_support": "placeholder_only",
+      "reasoning_evidence": [
+        "$.choices[0].delta.reasoning_content=null",
+        "$.choices[0].delta.reasoning_content=null",
+        "$.choices[0].delta.reasoning_content=null",
+        "$.choices[0].delta.reasoning_content=null",
+        "$.choices[0].delta.reasoning_content=null"
+      ],
+      "error": null
+    }
+  },
+  "claude-4.6-opus": {
+    "non_stream": {
+      "request_ok": true,
+      "latency_ms": 2050,
+      "status_code": 200,
+      "content_non_empty": true,
+      "reasoning_support": "absent",
+      "reasoning_evidence": [],
+      "error": null
+    },
+    "stream": {
+      "request_ok": true,
+      "latency_ms": 2083,
+      "status_code": 200,
+      "chunk_received": true,
+      "finish_reason_present": true,
+      "content_reconstructed": true,
+      "reasoning_support": "placeholder_only",
+      "reasoning_evidence": [
+        "$.choices[0].delta.reasoning_content=null",
+        "$.choices[0].delta.reasoning_content=null",
+        "$.choices[0].delta.reasoning_content=null",
+        "$.choices[0].delta.reasoning_content=null",
+        "$.choices[0].delta.reasoning_content=null",
+        "$.choices[0].delta.reasoning_content=null",
+        "$.choices[0].delta.reasoning_content=null"
+      ],
+      "error": null
+    }
+  },
+  "claude-4.6-sonnet": {
+    "non_stream": {
+      "request_ok": true,
+      "latency_ms": 1426,
+      "status_code": 200,
+      "content_non_empty": true,
+      "reasoning_support": "absent",
+      "reasoning_evidence": [],
+      "error": null
+    },
+    "stream": {
+      "request_ok": true,
+      "latency_ms": 1674,
+      "status_code": 200,
+      "chunk_received": true,
+      "finish_reason_present": true,
+      "content_reconstructed": true,
+      "reasoning_support": "placeholder_only",
+      "reasoning_evidence": [
+        "$.choices[0].delta.reasoning_content=null",
+        "$.choices[0].delta.reasoning_content=null",
+        "$.choices[0].delta.reasoning_content=null",
+        "$.choices[0].delta.reasoning_content=null",
+        "$.choices[0].delta.reasoning_content=null",
+        "$.choices[0].delta.reasoning_content=null"
+      ],
+      "error": null
+    }
+  },
+  "deepseek-r1": {
+    "non_stream": {
+      "request_ok": true,
+      "latency_ms": 14162,
+      "status_code": 200,
+      "content_non_empty": true,
+      "reasoning_support": "content_exposed",
+      "reasoning_evidence": [
+        "$.choices[0].message.reasoning_content=\"首先，用户要求我认真思考后回答37乘以19等于多少，并且只输出最终答案。这意味着我需要计算这个乘法，但不要显示任何思考过程。\\n\\n计算37乘以19。我可以使用乘法公式：37 × 19。\\n\\n我可以分解19为20减1，因为乘法有时更容易",
+        "$.usage.completion_tokens_details.reasoning_tokens=476"
+      ],
+      "error": null
+    },
+    "stream": {
+      "request_ok": true,
+      "latency_ms": 8382,
+      "status_code": 200,
+      "chunk_received": true,
+      "finish_reason_present": true,
+      "content_reconstructed": true,
+      "reasoning_support": "content_exposed",
+      "reasoning_evidence": [
+        "$.choices[0].delta.reasoning_content=\"\"",
+        "$.choices[0].delta.reasoning_content=\" \"",
+        "$.choices[0].delta.reasoning_content=\"首先\"",
+        "$.choices[0].delta.reasoning_content=\"，用户\"",
+        "$.choices[0].delta.reasoning_content=\"要求\"",
+        "$.choices[0].delta.reasoning_content=\"我认真\"",
+        "$.choices[0].delta.reasoning_content=\"思考后回答：\"",
+        "$.choices[0].delta.reasoning_content=\"37乘以19等于\""
+      ],
+      "error": null
+    }
+  },
+  "gemini-3.1-pro-preview": {
+    "non_stream": {
+      "request_ok": false,
+      "latency_ms": 473,
+      "status_code": 429,
+      "content_non_empty": false,
+      "reasoning_support": "error",
+      "reasoning_evidence": [],
+      "error": "Client error '429 Too Many Requests' for url 'http://rd-gateway.patsnap.info/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429"
+    },
+    "stream": {
+      "request_ok": true,
+      "latency_ms": 5179,
+      "status_code": 200,
+      "chunk_received": true,
+      "finish_reason_present": true,
+      "content_reconstructed": true,
+      "reasoning_support": "metadata_only",
+      "reasoning_evidence": [
+        "$.choices[0].delta.reasoning_content=null",
+        "$.usage.completion_tokens_details.reasoning_tokens=243"
+      ],
+      "error": null
+    }
+  },
+  "gemini-2.5-flash": {
+    "non_stream": {
+      "request_ok": true,
+      "latency_ms": 796,
+      "status_code": 200,
+      "content_non_empty": true,
+      "reasoning_support": "absent",
+      "reasoning_evidence": [],
+      "error": null
+    },
+    "stream": {
+      "request_ok": true,
+      "latency_ms": 871,
+      "status_code": 200,
+      "chunk_received": true,
+      "finish_reason_present": true,
+      "content_reconstructed": true,
+      "reasoning_support": "placeholder_only",
+      "reasoning_evidence": [
+        "$.choices[0].delta.reasoning_content=null",
+        "$.choices[0].delta.reasoning_content=null"
+      ],
+      "error": null
+    }
+  },
+  "qwen3.5-plus": {
+    "non_stream": {
+      "request_ok": true,
+      "latency_ms": 8445,
+      "status_code": 200,
+      "content_non_empty": true,
+      "reasoning_support": "content_exposed",
+      "reasoning_evidence": [
+        "$.choices[0].message.reasoning_content=\"Thinking Process:\\n\\n1.  **Analyze the Request:**\\n    *   Task: Calculate 37 multiplied by 19 (37 乘以 19 等于多少).\\n    * ",
+        "$.usage.completion_tokens_details.reasoning_tokens=424"
+      ],
+      "error": null
+    },
+    "stream": {
+      "request_ok": true,
+      "latency_ms": 12774,
+      "status_code": 200,
+      "chunk_received": true,
+      "finish_reason_present": true,
+      "content_reconstructed": true,
+      "reasoning_support": "content_exposed",
+      "reasoning_evidence": [
+        "$.choices[0].delta.reasoning_content=\"Thinking\"",
+        "$.choices[0].delta.reasoning_content=\" Process:\\n\\n1\"",
+        "$.choices[0].delta.reasoning_content=\".  **An\"",
+        "$.choices[0].delta.reasoning_content=\"alyze the Request:**\"",
+        "$.choices[0].delta.reasoning_content=\"\\n    *  \"",
+        "$.choices[0].delta.reasoning_content=\" Question: What\"",
+        "$.choices[0].delta.reasoning_content=\" is 37\"",
+        "$.choices[0].delta.reasoning_content=\" multiplied by 1\""
+      ],
+      "error": null
+    }
+  },
+  "kimi-k2.5": {
+    "non_stream": {
+      "request_ok": true,
+      "latency_ms": 2902,
+      "status_code": 200,
+      "content_non_empty": true,
+      "reasoning_support": "placeholder_only",
+      "reasoning_evidence": [
+        "$.choices[0].message.reasoning_content=\"\""
+      ],
+      "error": null
+    },
+    "stream": {
+      "request_ok": true,
+      "latency_ms": 844,
+      "status_code": 200,
+      "chunk_received": true,
+      "finish_reason_present": true,
+      "content_reconstructed": true,
+      "reasoning_support": "placeholder_only",
+      "reasoning_evidence": [
+        "$.choices[0].delta.reasoning_content=null",
+        "$.choices[0].delta.reasoning_content=null",
+        "$.choices[0].delta.reasoning_content=null"
+      ],
+      "error": null
+    }
+  }
+}

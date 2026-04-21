@@ -1,0 +1,113 @@
+{
+  "kimi-k2.5": [
+    {
+      "dimension": "D1",
+      "status": "PASS",
+      "path": "openai",
+      "latency_ms": 918,
+      "checks": {
+        "has_choice": true,
+        "role_assistant": true,
+        "content_non_empty": true,
+        "finish_reason_stop": true
+      },
+      "error": null,
+      "notes": [
+        "content=OK"
+      ]
+    },
+    {
+      "dimension": "D2",
+      "status": "PASS",
+      "path": "openai",
+      "latency_ms": 2146,
+      "checks": {
+        "chunk_received": true,
+        "delta_present": true,
+        "finish_reason_present": true,
+        "content_reconstructed": true
+      },
+      "error": null,
+      "notes": [
+        "stream_text=今日晴朗，微风拂面。"
+      ]
+    },
+    {
+      "dimension": "D3",
+      "status": "PASS",
+      "path": "openai",
+      "latency_ms": 2866,
+      "checks": {
+        "tool_calls_present": true,
+        "tool_name_match": true,
+        "arguments_valid_json": true,
+        "finish_reason_tool_calls": true
+      },
+      "error": null,
+      "notes": [
+        "args={\"city\": \"北京\"}"
+      ]
+    },
+    {
+      "dimension": "D4",
+      "status": "PASS",
+      "path": "openai",
+      "latency_ms": 1495,
+      "checks": {
+        "at_least_two_tools": true,
+        "distinct_tool_ids": true,
+        "expected_tool_names": true,
+        "all_arguments_valid_json": true
+      },
+      "error": null,
+      "notes": [
+        "tool_names=get_weather,get_time"
+      ]
+    },
+    {
+      "dimension": "D5",
+      "status": "PASS",
+      "path": "openai",
+      "latency_ms": 3586,
+      "checks": {
+        "first_turn_tool_call": true,
+        "second_turn_text": true,
+        "references_tool_result": true
+      },
+      "error": null,
+      "notes": [
+        "roundtrip_text=**总结**：北京今天天气晴朗，气温22℃，东北风2级，是个舒适宜人的好天气！☀️"
+      ]
+    },
+    {
+      "dimension": "D6",
+      "status": "PASS",
+      "path": "openai",
+      "latency_ms": 2073,
+      "checks": {
+        "tool_called": true,
+        "valid_json": true,
+        "schema_valid": true,
+        "required_fields_present": true
+      },
+      "error": null,
+      "notes": [
+        "parsed={\"channel\": \"email\", \"priority\": \"high\", \"target\": {\"team\": \"platform\", \"region\": \"cn\"}, \"tags\": [\"gateway\", \"urgent\"]}"
+      ]
+    },
+    {
+      "dimension": "D7",
+      "status": "PASS",
+      "path": "openai",
+      "latency_ms": 1183,
+      "checks": {
+        "content_non_empty": true,
+        "contains_name": true
+      },
+      "error": null,
+      "notes": [
+        "answer=张三"
+      ]
+    }
+  ]
+}

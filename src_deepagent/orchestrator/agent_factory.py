@@ -17,7 +17,7 @@ from pydantic_deep.agent import create_deep_agent, create_default_deps
 from pydantic_deep.deps import StateBackend
 
 from src_deepagent.core.logging import get_logger
-from src_deepagent.llm.config import get_model
+from src_deepagent.llm.registry import get_model_bundle
 from src_deepagent.orchestrator.hooks import create_hooks
 from src_deepagent.capabilities.event_publishing import EventPublishingCapability
 from src_deepagent.context.builder import build_dynamic_instructions
@@ -85,15 +85,15 @@ def create_orchestrator_agent(
         except ImportError:
             logger.warning("pydantic_ai_shields 未安装，ToolGuard 不可用")
 
-    # 统一使用 orchestrator 模型，让主 Agent 拥有完整能力
-    model_alias = "orchestrator"
+    # 统一使用 orchestrator 角色绑定的模型
+    bundle = get_model_bundle("orchestrator", plan.mode.value)
 
     # MCP toolsets（pydantic-ai MCPServer 实例）
     mcp_toolsets = plan.resources.mcp_toolsets
 
     # 创建主 Agent
     agent = create_deep_agent(
-        model=get_model(model_alias),
+        model=bundle.model,
         instructions=instructions,
         hooks=hooks,
         capabilities=capabilities if capabilities else None,

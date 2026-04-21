@@ -1,0 +1,85 @@
+{
+  "glm-5.1": [
+    {
+      "dimension": "D1",
+      "status": "FAIL",
+      "path": "openai",
+      "latency_ms": 951,
+      "checks": {},
+      "error": "Error code: 402 - {'error': {'http_code': 402, 'code': '401008', 'message': 'endpoint is inactive: FREE_QUOTA_EXHAUSTED', 'type': 'gateway_error'}}",
+      "notes": []
+    },
+    {
+      "dimension": "D2",
+      "status": "FAIL",
+      "path": "openai",
+      "latency_ms": 137,
+      "checks": {},
+      "error": "Client error '402 Payment Required' for url 'http://rd-gateway.patsnap.info/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402",
+      "notes": []
+    },
+    {
+      "dimension": "D3",
+      "status": "FAIL",
+      "path": "openai",
+      "latency_ms": 117,
+      "checks": {},
+      "error": "Error code: 402 - {'error': {'http_code': 402, 'code': '401008', 'message': 'endpoint is inactive: FREE_QUOTA_EXHAUSTED', 'type': 'gateway_error'}}",
+      "notes": []
+    },
+    {
+      "dimension": "D4",
+      "status": "FAIL",
+      "path": "openai",
+      "latency_ms": 114,
+      "checks": {},
+      "error": "Error code: 402 - {'error': {'http_code': 402, 'code': '401008', 'message': 'endpoint is inactive: FREE_QUOTA_EXHAUSTED', 'type': 'gateway_error'}}",
+      "notes": []
+    },
+    {
+      "dimension": "D5",
+      "status": "FAIL",
+      "path": "openai",
+      "latency_ms": 116,
+      "checks": {},
+      "error": "Error code: 402 - {'error': {'http_code': 402, 'code': '401008', 'message': 'endpoint is inactive: FREE_QUOTA_EXHAUSTED', 'type': 'gateway_error'}}",
+      "notes": []
+    },
+    {
+      "dimension": "D6",
+      "status": "FAIL",
+      "path": "openai",
+      "latency_ms": 106,
+      "checks": {},
+      "error": "Error code: 402 - {'error': {'http_code': 402, 'code': '401008', 'message': 'endpoint is inactive: FREE_QUOTA_EXHAUSTED', 'type': 'gateway_error'}}",
+      "notes": []
+    },
+    {
+      "dimension": "D7",
+      "status": "FAIL",
+      "path": "openai",
+      "latency_ms": 120,
+      "checks": {},
+      "error": "Error code: 402 - {'error': {'http_code': 402, 'code': '401008', 'message': 'endpoint is inactive: FREE_QUOTA_EXHAUSTED', 'type': 'gateway_error'}}",
+      "notes": []
+    },
+    {
+      "dimension": "D8",
+      "status": "FAIL",
+      "path": "openai",
+      "latency_ms": 152,
+      "checks": {},
+      "error": "Client error '402 Payment Required' for url 'http://rd-gateway.patsnap.info/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402",
+      "notes": []
+    },
+    {
+      "dimension": "D9",
+      "status": "FAIL",
+      "path": "openai",
+      "latency_ms": 154,
+      "checks": {},
+      "error": "Client error '402 Payment Required' for url 'http://rd-gateway.patsnap.info/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402",
+      "notes": []
+    }
+  ]
+}

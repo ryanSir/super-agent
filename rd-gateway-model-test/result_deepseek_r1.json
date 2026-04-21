@@ -1,0 +1,147 @@
+{
+  "deepseek-r1": [
+    {
+      "dimension": "D1",
+      "status": "PASS",
+      "path": "openai",
+      "latency_ms": 5414,
+      "checks": {
+        "has_choice": true,
+        "role_assistant": true,
+        "content_non_empty": true,
+        "finish_reason_stop": true
+      },
+      "error": null,
+      "notes": [
+        "content=OK"
+      ]
+    },
+    {
+      "dimension": "D2",
+      "status": "FAIL",
+      "path": "openai",
+      "latency_ms": 6755,
+      "checks": {
+        "chunk_received": false,
+        "delta_present": false,
+        "finish_reason_present": false,
+        "content_reconstructed": false
+      },
+      "error": null,
+      "notes": [
+        "lenient SSE parse: PASS — gateway returns 'data:' without trailing space (non-standard)",
+        "lenient_stream_text=stream_text=<think>嗯，用户让我用一句中文短句描述今天的天气。这个需求看起来简单直接，但背后可能隐藏着几种可能性：用户可能正在规划出行需要快速参考，或是想测试我的实时"
+      ]
+    },
+    {
+      "dimension": "D3",
+      "status": "PASS",
+      "path": "openai",
+      "latency_ms": 2271,
+      "checks": {
+        "tool_calls_present": true,
+        "tool_name_match": true,
+        "arguments_valid_json": true,
+        "finish_reason_tool_calls": true
+      },
+      "error": null,
+      "notes": [
+        "args={\"city\": \"北京\"}"
+      ]
+    },
+    {
+      "dimension": "D4",
+      "status": "PASS",
+      "path": "openai",
+      "latency_ms": 12962,
+      "checks": {
+        "at_least_two_tools": true,
+        "distinct_tool_ids": true,
+        "expected_tool_names": true,
+        "all_arguments_valid_json": true
+      },
+      "error": null,
+      "notes": [
+        "tool_names=get_weather,get_time"
+      ]
+    },
+    {
+      "dimension": "D5",
+      "status": "PASS",
+      "path": "openai",
+      "latency_ms": 11208,
+      "checks": {
+        "first_turn_tool_call": true,
+        "second_turn_text": true,
+        "references_tool_result": true
+      },
+      "error": null,
+      "notes": [
+        "roundtrip_text=北京的天气晴朗，气温22摄氏度，东北风2级，是个适合外出的好天气！"
+      ]
+    },
+    {
+      "dimension": "D6",
+      "status": "PASS",
+      "path": "openai",
+      "latency_ms": 9877,
+      "checks": {
+        "tool_called": true,
+        "valid_json": true,
+        "schema_valid": true,
+        "required_fields_present": true
+      },
+      "error": null,
+      "notes": [
+        "parsed={\"channel\": \"email\", \"priority\": \"high\", \"tags\": [\"gateway\", \"urgent\"], \"target\": {\"team\": \"platform\", \"region\": \"cn\"}}"
+      ]
+    },
+    {
+      "dimension": "D7",
+      "status": "PASS",
+      "path": "openai",
+      "latency_ms": 5923,
+      "checks": {
+        "content_non_empty": true,
+        "contains_name": true
+      },
+      "error": null,
+      "notes": [
+        "answer=张三"
+      ]
+    },
+    {
+      "dimension": "D8",
+      "status": "PASS",
+      "path": "openai",
+      "latency_ms": 20791,
+      "checks": {
+        "content_non_empty": true,
+        "reasoning_present": true
+      },
+      "error": null,
+      "notes": [
+        "reasoning=首先，问题是关于一个水池有两个进水管和一个出水管。  \n进水管A每小时注入3吨水，进水管B每小时注入2吨水，出水管每小时排出1吨水。  \n水池容量是20吨，从空池开始。  \n我需要找出多久能注满水池。  \n\n关键是要计算净流入水量。  \n因",
+        "content=水池有两个进水管和一个出水管，从空池开始注水。让我们一步步计算多久能注满20吨的容量。\n\n### 步骤1: 计算总进水量\n- 进水管A每小时注入3吨水。\n- 进"
+      ]
+    },
+    {
+      "dimension": "D9",
+      "status": "PASS",
+      "path": "openai",
+      "latency_ms": 27413,
+      "checks": {
+        "chunk_received": true,
+        "reasoning_delta_present": true,
+        "content_delta_present": true,
+        "reasoning_reconstructed": true,
+        "content_reconstructed": true
+      },
+      "error": null,
+      "notes": [
+        "reasoning=首先，问题是：一个水池有两个进水管和一个出水管。进水管A每小时注入3吨水，进水管B每小时注入2吨水，出水管每小时排出1吨水。水池容量是20吨，从空池开始，问多久能注满。\n\n我需要找出注满水池所需的时间。水池容量是20吨，所以当水达到20吨时",
+        "content=<think>首先，问题是：一个水池有两个进水管和一个出水管。进水管A每小时注入3吨水，进水管B每小时注入2吨水，出水管每小时排出1吨水。水池容量是20吨，从空"
+      ]
+    }
+  ]
+}

@@ -82,6 +82,10 @@ export type UIState = {
   error: string | null
 }
 
+function stripThinkingTags(text: string): string {
+  return text.replace(/<thinking>[\s\S]*?<\/thinking>\s*/g, '').trim()
+}
+
 function emptyResponse(): ResponseState {
   return {
     thinking: '',
@@ -127,7 +131,7 @@ export function handleEvent(state: UIState, event: A2UIEvent): UIState {
       if (state.currentResponse) {
         // 如果 answer 为空但后端返回了 answer，补充
         const cr = state.currentResponse
-        const finalAnswer = cr.answer || event.answer || ''
+        const finalAnswer = stripThinkingTags(event.answer || cr.answer || '')
         // 清理仍在 loading 的 toolResults
         const finalToolResults = cr.toolResults.map((tr) =>
           tr.loading ? { ...tr, loading: false, status: 'success' as const } : tr
@@ -278,11 +282,12 @@ export function handleEvent(state: UIState, event: A2UIEvent): UIState {
 
     case 'text_stream': {
       const cr = state.currentResponse || emptyResponse()
+      const nextAnswer = stripThinkingTags((cr.answer || '') + (event.delta || ''))
       return {
         ...state,
         currentResponse: {
           ...cr,
-          answer: cr.answer + (event.delta || ''),
+          answer: nextAnswer,
           answerComplete: event.is_final || false,
         },
       }

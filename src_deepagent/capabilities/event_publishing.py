@@ -19,6 +19,7 @@ from typing import Any, Callable
 
 from pydantic_ai.capabilities import AbstractCapability
 
+from src_deepagent.config.settings import get_settings
 from src_deepagent.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -222,6 +223,10 @@ class EventPublishingCapability(AbstractCapability[Any]):
         response: Any,
     ) -> Any:
         """从 LLM 响应中提取 thinking 和 text_stream 事件"""
+        llm_settings = get_settings().llm
+        if llm_settings.true_streaming_enabled:
+            return response
+
         if not hasattr(response, "parts"):
             return response
 
@@ -229,7 +234,12 @@ class EventPublishingCapability(AbstractCapability[Any]):
             part_kind = getattr(part, "part_kind", "")
 
             # thinking 事件
-            if part_kind == "thinking" and hasattr(part, "content") and part.content:
+            if (
+                llm_settings.stream_thinking_enabled
+                and part_kind == "thinking"
+                and hasattr(part, "content")
+                and part.content
+            ):
                 await self._publish({
                     "event_type": "thinking",
                     "content": part.content,
@@ -237,7 +247,12 @@ class EventPublishingCapability(AbstractCapability[Any]):
                 })
 
             # text_stream 事件
-            elif hasattr(part, "content") and isinstance(part.content, str) and part.content:
+            elif (
+                llm_settings.stream_text_enabled
+                and hasattr(part, "content")
+                and isinstance(part.content, str)
+                and part.content
+            ):
                 # 跳过 tool_call 类型的 part
                 if part_kind not in ("tool-call", "tool-return", "thinking"):
                     await self._publish({
