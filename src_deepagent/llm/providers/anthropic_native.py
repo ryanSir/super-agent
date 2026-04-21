@@ -7,12 +7,15 @@ from contextlib import asynccontextmanager
 from typing import Any, cast
 
 import anthropic
-from anthropic.types.beta import BetaThinkingConfigEnabledParam
 from pydantic_ai.models.anthropic import AnthropicModel, AnthropicModelSettings
+from pydantic_ai.profiles.anthropic import anthropic_model_profile
 from pydantic_ai.providers.anthropic import AnthropicProvider
 
 from src_deepagent.config.settings import get_settings
-from src_deepagent.orchestrator.reasoning_engine import ExecutionMode
+from src_deepagent.llm.compatibility import (
+    max_tokens_for_execution_mode,
+    thinking_level_for_execution_mode,
+)
 from src_deepagent.llm.providers.base import BaseProvider
 from src_deepagent.llm.schemas import ModelProfile, ProviderConfig
 
@@ -75,16 +78,17 @@ class CompatibleAnthropicModel(AnthropicModel):
             if close is not None:
                 await close()
 
-_MAX_TOKENS = {
-    ExecutionMode.DIRECT.value: 4000,
-    ExecutionMode.AUTO.value: 8000,
-    ExecutionMode.PLAN_AND_EXECUTE.value: 16000,
-    ExecutionMode.SUB_AGENT.value: 16000,
-}
-
-
 class AnthropicNativeProvider(BaseProvider):
     """Anthropic 原生协议 provider。"""
+
+    def _canonical_profile_name(self, model_name: str) -> str:
+        aliases = {
+            "claude-4.5-haiku": "claude-haiku-4-5",
+            "claude-4.6-sonnet": "claude-sonnet-4-6",
+            "claude-4.6-opus": "claude-opus-4-6",
+            "claude-4.7-opus": "claude-opus-4-7",
+        }
+        return aliases.get(model_name, model_name)
 
     def create_model(self, profile: ModelProfile, provider_cfg: ProviderConfig) -> Any:
         settings = get_settings()
@@ -103,23 +107,14 @@ class AnthropicNativeProvider(BaseProvider):
             },
         )
         provider = AnthropicProvider(anthropic_client=anthropic_client)
-        return CompatibleAnthropicModel(profile.model, provider=provider)
+        model_profile = anthropic_model_profile(self._canonical_profile_name(profile.model))
+        return CompatibleAnthropicModel(profile.model, provider=provider, profile=model_profile)
 
     def create_model_settings(self, profile: ModelProfile, execution_mode: str) -> Any | None:
         if not profile.capabilities.supports_native_thinking:
             return None
-        max_tokens = _MAX_TOKENS.get(execution_mode, _MAX_TOKENS[ExecutionMode.AUTO.value])
-        model_name = profile.model.lower()
-        if "4.7" in model_name:
-            return AnthropicModelSettings(
-                anthropic_thinking={"type": "adaptive"},
-                anthropic_effort="medium",
-                max_tokens=max_tokens,
-            )
+        max_tokens = max_tokens_for_execution_mode(execution_mode)
         return AnthropicModelSettings(
-            anthropic_thinking=BetaThinkingConfigEnabledParam(
-                type="enabled",
-                budget_tokens=max(1024, max_tokens // 4),
-            ),
+            thinking=thinking_level_for_execution_mode(execution_mode),
             max_tokens=max_tokens,
         )

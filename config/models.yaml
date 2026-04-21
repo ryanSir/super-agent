@@ -44,21 +44,43 @@ models:
     model: qwen3.5-plus
     transport: openai_compat
     reasoning_format: none
+    capabilities:
+      streaming: true
+      tool_calling: true
+      reasoning: false
 
   gpt_54:
     provider: rd_gateway
     model: gpt-5.4
     transport: openai_compat
     reasoning_format: inline_thinking_tags
+    capabilities:
+      streaming: true
+      tool_calling: true
+      reasoning: true
 
   deepseek_r1:
     provider: rd_gateway
     model: deepseek-r1
     transport: openai_compat
     reasoning_format: reasoning_content
+    capabilities:
+      streaming: true
+      tool_calling: true
+      reasoning: true
+
+  gemini_25_flash:
+    provider: rd_gateway
+    model: gemini-2.5-flash
+    transport: openai_compat
+    reasoning_format: reasoning_content
+    capabilities:
+      streaming: true
+      tool_calling: true
+      reasoning: true
 
 roles:
-  orchestrator: qwen_fast
-  planner: gpt_54
-  subagent: gpt_54
+  orchestrator: gemini_25_flash
+  planner: claude_opus
+  subagent: claude_opus
   classifier: qwen_fast

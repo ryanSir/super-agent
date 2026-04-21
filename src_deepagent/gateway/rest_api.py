@@ -412,6 +412,12 @@ def _build_event_stream_handler(
                 part = event.part
                 part_kind = getattr(part, "part_kind", "")
                 content = getattr(part, "content", None)
+                if reasoning_format == "anthropic_thinking":
+                    logger.info(
+                        f"anthropic_thinking 调试 PartStart | session_id={session_id} trace_id={trace_id} "
+                        f"part_kind={part_kind} part_type={type(part).__name__} "
+                        f"content_preview={str(content)[:120] if content is not None else ''}"
+                    )
                 if reasoning_format == "reasoning_content":
                     logger.info(
                         f"reasoning_content 调试 PartStart | session_id={session_id} trace_id={trace_id} "
@@ -424,6 +430,12 @@ def _build_event_stream_handler(
                     await _handle_text_delta(content)
             elif isinstance(event, PartDeltaEvent):
                 delta = event.delta
+                if reasoning_format == "anthropic_thinking":
+                    logger.info(
+                        f"anthropic_thinking 调试 PartDelta | session_id={session_id} trace_id={trace_id} "
+                        f"delta_type={type(delta).__name__} "
+                        f"delta_preview={getattr(delta, 'content_delta', None) or getattr(delta, 'args_delta', None) or ''}"
+                    )
                 if reasoning_format == "reasoning_content":
                     logger.info(
                         f"reasoning_content 调试 PartDelta | session_id={session_id} trace_id={trace_id} "

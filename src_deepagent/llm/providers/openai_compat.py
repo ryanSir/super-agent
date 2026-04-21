@@ -5,11 +5,15 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.models.openai import OpenAIModel, OpenAIModelSettings
 from pydantic_ai.profiles.openai import OpenAIModelProfile, openai_model_profile
 from pydantic_ai.providers.openai import OpenAIProvider
 
 from src_deepagent.config.settings import get_settings
+from src_deepagent.llm.compatibility import (
+    max_tokens_for_execution_mode,
+    thinking_level_for_execution_mode,
+)
 from src_deepagent.llm.providers.base import BaseProvider
 from src_deepagent.llm.schemas import ModelProfile, ProviderConfig
 
@@ -49,4 +53,10 @@ class OpenAICompatProvider(BaseProvider):
         return OpenAIModel(profile.model, provider=provider, profile=self._build_profile(profile))
 
     def create_model_settings(self, profile: ModelProfile, execution_mode: str) -> Any | None:
-        return None
+        max_tokens = max_tokens_for_execution_mode(execution_mode)
+        if profile.capabilities.reasoning:
+            return OpenAIModelSettings(
+                thinking=thinking_level_for_execution_mode(execution_mode),
+                max_tokens=max_tokens,
+            )
+        return OpenAIModelSettings(max_tokens=max_tokens)
