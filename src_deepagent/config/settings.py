@@ -15,7 +15,7 @@ from pydantic_settings import BaseSettings
 class LLMSettings(BaseSettings):
     """LLM 模型配置"""
 
-    config_path: str = Field(default="config/models.yaml", alias="LLM_CONFIG_PATH")
+    config_path: str = Field(default="src_deepagent/llm/models.yaml", alias="LLM_CONFIG_PATH")
     true_streaming_enabled: bool = Field(default=False, alias="LLM_TRUE_STREAMING_ENABLED")
     stream_thinking_enabled: bool = Field(default=True, alias="LLM_STREAM_THINKING_ENABLED")
     stream_text_enabled: bool = Field(default=True, alias="LLM_STREAM_TEXT_ENABLED")
