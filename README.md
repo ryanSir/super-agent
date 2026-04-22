@@ -180,15 +180,26 @@ LANGFUSE_SECRET_KEY=sk-...
 ### Run
 
 ```bash
-# Terminal 1: Start Temporal dev server
-temporal server start-dev --ui-port 8233
+# 安装前后端依赖
+make install
 
-# Terminal 2: Start backend
-python run_server.py
+# 同时启动前后端（推荐）
+make dev
 
-# Terminal 3: Start frontend
-cd frontend && npm run dev
+# 或分别启动
+make dev-backend   # 后端 http://localhost:9001
+make dev-frontend  # 前端 http://localhost:5173
 ```
+
+其他命令：
+
+```bash
+make build   # 构建前端生产包
+make lint    # 后端代码检查（ruff）
+make help    # 查看所有命令
+```
+
+> 旧方式仍可用：`python run_deepagent.py` 启动后端，`cd frontend-deepagent && npm run dev` 启动前端。
 
 Visit `http://localhost:5173` 🎉
 
