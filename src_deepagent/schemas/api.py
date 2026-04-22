@@ -43,6 +43,7 @@ class QueryRequest(BaseModel):
 
     query: str = Field(description="用户自然语言请求")
     session_id: str | None = Field(default=None, description="会话 ID（可选，自动生成）")
+
     mode: str = Field(
         default="auto",
         pattern=r"^(auto|direct|plan_and_execute|sub_agent)$",

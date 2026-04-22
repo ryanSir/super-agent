@@ -128,6 +128,7 @@ async def list_skills():
     """返回已注册的 Skill 列表"""
     from src_deepagent.capabilities.skills.registry import skill_registry
 
+    skill_registry._ensure_scanned()
     skills = [
         {
             "name": info.metadata.name,
@@ -186,6 +187,30 @@ async def stream_events(session_id: str, request: Request) -> StreamingResponse:
     )
 
 
+@router.get("/models")
+async def list_models():
+    """返回可用模型列表及当前各角色配置"""
+    from src_deepagent.llm.catalog import get_catalog
+    catalog = get_catalog()
+    models = [
+        {"key": name, "display": profile.model}
+        for name, profile in catalog.models.items()
+    ]
+    return {"models": models, "roles": catalog.roles}
+
+
+@router.patch("/roles/{role}")
+async def update_role(role: str, body: dict):
+    """更新角色对应的模型（内存生效，重启后恢复 yaml 配置）"""
+    from src_deepagent.llm.catalog import get_catalog
+    catalog = get_catalog()
+    model_key = body.get("model")
+    if not model_key or model_key not in catalog.models:
+        raise HTTPException(status_code=400, detail=f"未知模型: {model_key}")
+    catalog.roles[role] = model_key
+    return {"success": True, "role": role, "model": model_key}
+
+
 @router.post("/admin/reload-mcp")
 async def reload_mcp() -> dict:
     """手动触发 MCP 工具刷新（运维接口）"""
@@ -237,6 +262,23 @@ def _extract_last_text_from_result(result: Any) -> str:
     return str(result.output)[:2000] if hasattr(result, "output") else ""
 
 
+def _extract_thinking_from_result(result: Any) -> str:
+    """从 agent result 中提取 thinking 文本。"""
+    chunks: list[str] = []
+    try:
+        if hasattr(result, "all_messages"):
+            for msg in result.all_messages():
+                if hasattr(msg, "parts"):
+                    for part in msg.parts:
+                        if getattr(part, "part_kind", "") == "thinking":
+                            content = getattr(part, "content", None)
+                            if isinstance(content, str) and content.strip():
+                                chunks.append(content)
+    except Exception:
+        pass
+    return "\n".join(chunks).strip()
+
+
 async def _run_agent(
     decision: Any,
     request: QueryRequest,
@@ -284,7 +326,12 @@ async def _run_agent(
             if bundle.model_settings:
                 iter_kwargs["model_settings"] = bundle.model_settings
 
-            if settings.llm.true_streaming_enabled:
+            use_true_streaming = (
+                settings.llm.true_streaming_enabled
+                and bundle.profile.reasoning_format != "reasoning_content"
+            )
+
+            if use_true_streaming:
                 result = await agent.run(
                     effective_query,
                     **iter_kwargs,
@@ -464,6 +511,7 @@ async def _run_orchestration(
     """异步执行编排流程（支持 DIRECT → AUTO 模式升级）"""
     session_id_var.set(session_id)
     trace_id_var.set(trace_id)
+    settings = get_settings()
 
     try:
         # 推送会话创建事件
@@ -510,6 +558,7 @@ async def _run_orchestration(
 
         # Stage 2: Execute
         result = await _run_agent(decision, request, session_id, trace_id, message_history)
+        bundle = get_model_bundle("orchestrator", decision.mode.value)
 
         # 保存对话历史
         if _session_manager and hasattr(result, "all_messages"):
@@ -529,6 +578,23 @@ async def _run_orchestration(
         # （thinking 事件已由 EventPublishingCapability.after_model_request 发布）
         import re as _re
         answer = _re.sub(r'<thinking>.*?</thinking>\s*', '', answer, flags=_re.DOTALL).strip()
+
+        # reasoning_content 类模型目前走非流式兼容链路：
+        # 在全局 true_streaming 开启时，Capability 会跳过 after_model_request 发布，
+        # 因此这里补发一次最终 thinking。
+        if (
+            settings.llm.stream_thinking_enabled
+            and settings.llm.true_streaming_enabled
+            and bundle.profile.reasoning_format == "reasoning_content"
+        ):
+            thinking_text = _extract_thinking_from_result(result)
+            if thinking_text:
+                await _publish(session_id, {
+                    "event_type": "thinking",
+                    "content": thinking_text,
+                    "session_id": session_id,
+                    "trace_id": trace_id,
+                })
 
         logger.info(
             f"结果提取 | session_id={session_id} "

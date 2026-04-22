@@ -80,7 +80,7 @@ models:
       reasoning: true
 
 roles:
-  orchestrator: gemini_25_flash
+  orchestrator: claude_opus
   planner: claude_opus
   subagent: claude_opus
   classifier: qwen_fast

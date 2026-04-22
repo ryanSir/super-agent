@@ -73,6 +73,21 @@ function App() {
   const [mentionOpen, setMentionOpen] = useState(false)
   const [mentionFilter, setMentionFilter] = useState('')
   const [mentionIndex, setMentionIndex] = useState(0)
+  const [availableModels, setAvailableModels] = useState<{ key: string; display: string }[]>([])
+  const [orchestratorModel, setOrchestratorModel] = useState<string>('')
+  const [modelDropdownOpen, setModelDropdownOpen] = useState(false)
+  const modelDropdownRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!modelDropdownOpen) return
+    const handler = (e: MouseEvent) => {
+      if (modelDropdownRef.current && !modelDropdownRef.current.contains(e.target as Node)) {
+        setModelDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [modelDropdownOpen])
 
   // 拉取 skill 列表
   useEffect(() => {
@@ -84,6 +99,29 @@ function App() {
         if (data.skills) setSkills(data.skills)
       })
       .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    const isDev = import.meta.env.DEV
+    const host = isDev ? 'http://localhost:9001' : ''
+    fetch(`${host}/api/agent/models`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.models) setAvailableModels(data.models)
+        if (data.roles?.orchestrator) setOrchestratorModel(data.roles.orchestrator)
+      })
+      .catch(() => {})
+  }, [])
+
+  const handleModelChange = useCallback(async (modelKey: string) => {
+    const isDev = import.meta.env.DEV
+    const host = isDev ? 'http://localhost:9001' : ''
+    setOrchestratorModel(modelKey)
+    await fetch(`${host}/api/agent/roles/orchestrator`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: modelKey }),
+    }).catch(() => {})
   }, [])
 
   // 同步主题到 html 元素
@@ -340,7 +378,7 @@ function App() {
               onChange={handleChange}
               onKeyDown={handleKeyDown}
               onInput={handleInput}
-              placeholder="输入你的请求，/ 选择 Skill..."
+              placeholder="输入你的请求，/ 选择 Skill "
               disabled={state.isProcessing}
               className="input-field"
               rows={1}
@@ -355,33 +393,64 @@ function App() {
           </button>
         </form>
         <div className="footer-bar">
-          <div className="mode-selector">
-            <span className="mode-label">模式</span>
-            {[
-              { value: 'auto', label: '自动', icon: '⚡' },
-              { value: 'direct', label: '直接', icon: '↗' },
-              { value: 'plan_and_execute', label: '规划', icon: '📋' },
-              { value: 'sub_agent', label: '协作', icon: '👥' },
-            ].map((m) => (
-              <button
-                key={m.value}
-                type="button"
-                className={`mode-pill${mode === m.value ? ' mode-pill-active' : ''}`}
-                onClick={() => setMode(m.value)}
-                disabled={state.isProcessing}
-                title={
-                  m.value === 'auto' ? 'AI 自动判断最佳执行模式' :
-                  m.value === 'direct' ? '简单任务，直接回答' :
-                  m.value === 'plan_and_execute' ? '复杂任务，先规划再执行' :
-                  '多角色协作完成复杂任务'
-                }
-              >
-                <span className="mode-pill-icon">{m.icon}</span>
-                {m.label}
-              </button>
-            ))}
+          <div className="footer-left">
+            <div className="mode-selector">
+              <span className="mode-label">模式</span>
+              {[
+                { value: 'auto', label: '自动', icon: '⚡' },
+                { value: 'direct', label: '直接', icon: '↗' },
+                { value: 'plan_and_execute', label: '规划', icon: '📋' },
+                { value: 'sub_agent', label: '协作', icon: '👥' },
+              ].map((m) => (
+                <button
+                  key={m.value}
+                  type="button"
+                  className={`mode-pill${mode === m.value ? ' mode-pill-active' : ''}`}
+                  onClick={() => setMode(m.value)}
+                  disabled={state.isProcessing}
+                  title={
+                    m.value === 'auto' ? 'AI 自动判断最佳执行模式' :
+                    m.value === 'direct' ? '简单任务，直接回答' :
+                    m.value === 'plan_and_execute' ? '复杂任务，先规划再执行' :
+                    '多角色协作完成复杂任务'
+                  }
+                >
+                  <span className="mode-pill-icon">{m.icon}</span>
+                  {m.label}
+                </button>
+              ))}
+            </div>
+            {availableModels.length > 0 && (
+              <div className="model-selector" ref={modelDropdownRef}>
+                <span className="mode-label">模型</span>
+                <div className="model-pill-wrap">
+                  <div
+                    className={`model-pill${modelDropdownOpen ? ' model-pill-open' : ''}`}
+                    onClick={() => !state.isProcessing && setModelDropdownOpen((o) => !o)}
+                  >
+                    <span>{availableModels.find((m) => m.key === orchestratorModel)?.display ?? orchestratorModel}</span>
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                      <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                  {modelDropdownOpen && (
+                    <div className="model-dropdown">
+                      {availableModels.map((m) => (
+                        <div
+                          key={m.key}
+                          className={`model-dropdown-item${m.key === orchestratorModel ? ' model-dropdown-item-active' : ''}`}
+                          onClick={() => { handleModelChange(m.key); setModelDropdownOpen(false) }}
+                        >
+                          {m.display}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
-          <span className="input-hint">Enter 发送 · Shift+Enter 换行 · / 选择 Skill</span>
+          <span className="input-hint" title="Enter 发送 · Shift+Enter 换行 · / 选择 Skill">Enter 发送 · Shift+Enter 换行 · / 选择 Skill</span>
         </div>
       </footer>
     </div>

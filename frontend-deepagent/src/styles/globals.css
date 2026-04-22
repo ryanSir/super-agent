@@ -574,6 +574,10 @@ body {
   font-size: 11px;
   color: var(--text-secondary);
   opacity: 0.7;
+  white-space: nowrap;
+  flex-shrink: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .footer-bar {
@@ -582,12 +586,26 @@ body {
   justify-content: space-between;
   margin-top: 8px;
   padding: 0 2px;
+  flex-wrap: nowrap;
+  gap: 8px;
+}
+
+.footer-left {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
 }
 
 .mode-selector {
   display: flex;
+  flex-direction: row;
   align-items: center;
   gap: 4px;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
 }
 
 .mode-label {
@@ -640,6 +658,79 @@ body {
 .mode-pill-icon {
   font-size: 12px;
   line-height: 1;
+}
+
+.model-selector {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.model-pill-wrap {
+  position: relative;
+}
+
+.model-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  user-select: none;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.model-pill:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+  background: rgba(59, 130, 246, 0.06);
+}
+
+.model-pill-open {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.model-dropdown {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  width: max-content;
+  z-index: 100;
+  overflow: hidden;
+  animation: var(--anim-fade-in);
+}
+
+.model-dropdown-item {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+  white-space: nowrap;
+}
+
+.model-dropdown-item:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.model-dropdown-item-active {
+  color: var(--accent);
+  font-weight: 500;
 }
 
 /* ============================================================
@@ -818,7 +909,7 @@ body {
 }
 
 .thinking-content.expanded {
-  max-height: 600px;
+  max-height: 9999px;
   padding: 8px 14px 12px;
 }
 

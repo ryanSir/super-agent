@@ -841,3 +841,108 @@ TypeError: 'AnthropicAsyncStream' object does not support the asynchronous conte
 3. Sonnet / Opus 不能复用同一套 thinking 参数
 4. `claude-4.6-sonnet` 当前更适合作为默认 Claude thinking 模型
 5. `claude-4.7-opus` 当前可用，但思考过程返回不稳定
+
+
+## 14. reasoning_content 兼容问题记录
+
+### 14.1 问题现象
+
+在接入以下这类 OpenAI-compatible 网关模型时：
+
+- `gemini-2.5-flash`
+- `gemini-2.5-pro`
+- `deepseek-r1`
+
+我们观察到一个共同现象：
+
+- 网关原始响应里存在 `reasoning_content`
+- 但项目默认基于 `pydantic_ai + openai SDK` 的链路没有稳定把它转换成前端可见的 `thinking`
+- 前端只看到正文，或者只能看到正文里混入的思考文本
+
+这说明问题不在前端展示层，而在模型返回结构和框架 typed model 的映射层。
+
+### 14.2 根因判断
+
+`openai` Python SDK 的 `chat/completions` typed model 并不原生包含 `reasoning_content` 字段。
+
+结果是：
+
+1. 网关原始 JSON / SSE chunk 里虽然有 `reasoning_content`
+2. 但经过 `openai` SDK typed model 反序列化后，这个字段可能被吞掉
+3. `pydantic_ai` 最终拿不到 `reasoning_content`
+4. 因此不会自动生成 `ThinkingPart` / `ThinkingPartDelta`
+
+这条链路的本质问题是：
+
+- 不是模型没返回
+- 不是前端没接住
+- 而是 `openai SDK typed model` 和网关的 reasoning 返回格式不完全匹配
+
+### 14.3 已验证的结论
+
+已完成两类验证：
+
+1. 原始网关返回验证
+   - 能看到 `message.reasoning_content`
+   - 也能在流式 chunk 里看到 `delta.reasoning_content`
+
+2. 框架链路验证
+   - 直接走 `pydantic_ai + OpenAIModel` 时，thinking 不会稳定进入 `ThinkingPart`
+   - 非流式和流式都可能在 typed model 层丢失该字段
+
+结论：
+
+- `reasoning_content` 不是一个可以完全交给默认 OpenAI chat typed model 处理的字段
+- 如果不额外处理，就很难稳定展示思考过程
+
+### 14.4 项目内最终方案
+
+针对 `reasoning_format = reasoning_content` 的模型，项目最终采用了单独的兼容路径：
+
+1. 单独实现 `ReasoningContentOpenAIModel`
+   - 直接用原始 JSON 解析
+   - 不依赖 `openai` SDK typed response 自动映射
+   - 从 `message.reasoning_content` 提取 `ThinkingPart`
+   - 从 `message.content` 提取正文
+
+2. 非流式执行
+   - 这类模型不再强求 token 级真流式 thinking
+   - 先稳定拿到最终响应，再提取 thinking
+
+3. 完成时补发 thinking
+   - 当 `LLM_TRUE_STREAMING_ENABLED=true` 且模型为 `reasoning_content` 类型时
+   - 从 `result.all_messages()` 中提取 `ThinkingPart`
+   - 在 session completion 前统一发给前端
+
+4. 维持其他协议分流
+   - Anthropic 继续走 `anthropic_native`
+   - `gpt-5.4` 继续走 `<thinking>...</thinking>` 拆分
+   - `reasoning_content` 模型单独走 raw JSON 兼容路径
+
+### 14.5 当前推荐
+
+当前建议按协议类型分别处理，不要强求一套机制覆盖全部模型：
+
+- `anthropic_thinking`
+  - Claude 原生协议
+  - 保留 `CompatibleAnthropicModel`
+  - 继续支持原生 thinking part
+
+- `inline_thinking_tags`
+  - 适用于正文里嵌 `<thinking>...</thinking>` 的模型
+  - 继续保留后端标签拆分逻辑
+
+- `reasoning_content`
+  - 适用于 Gemini / DeepSeek R1 等模型
+  - 使用 raw JSON 兼容模型
+  - 以完成时补发 thinking 为主，不再依赖 `openai` SDK 的 typed streaming thinking
+
+### 14.6 阶段性结论
+
+这一轮排查的最终结论是：
+
+1. `Claude`、`gpt-5.4`、`Gemini/DeepSeek reasoning_content` 三类模型，返回结构并不相同
+2. 单纯依赖 `pydantic_ai` 的统一 thinking 抽象，无法稳定覆盖所有网关模型
+3. 正确的工程策略是按 `reasoning_format` 分协议处理，而不是继续堆一个全局 if/else
+
+这也是当前多模型架构里最重要的收口点之一。

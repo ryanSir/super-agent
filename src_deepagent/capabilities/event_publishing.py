@@ -30,7 +30,7 @@ def _infer_tool_type(tool_name: str) -> str:
     _SANDBOX_TOOLS = {"execute_sandbox", "run_code", "execute_code"}
     _NATIVE_TOOLS = {
         "emit_chart", "plan_and_decompose",
-        "search_skills", "create_skill", "baidu_search",
+        "search_skills", "list_skills", "create_skill", "baidu_search",
     }
     _BUILTIN_TOOLS = {
         "write_todos", "read_todos", "update_todo_status",
