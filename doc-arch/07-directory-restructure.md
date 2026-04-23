@@ -2,277 +2,201 @@
 
 ## 设计原则
 
-1. **一个支柱一个目录** — 九大模块各有独立目录，边界清晰
-2. **声明与执行分离** — capabilities（能做什么）和 workers（怎么做）分开
-3. **未实现的预留目录** — 放 `__init__.py` + 模块说明，不留空目录
-4. **最多两层嵌套** — 避免目录过深
+1. **一个支柱一个目录** — 六大架构支柱各自独立，边界清晰
+2. **声明与执行分离** — schema/接口定义与运行时实现分开放置
+3. **最多两层嵌套** — 避免深层目录导致导入路径过长
+4. **基础设施下沉** — LLM 路由、状态管理、安全、监控归入 `infra/`
+5. **入口聚合** — 所有对外接口（REST/WebSocket/SSE）统一在 `gateway/`
 
-## 目录结构
+---
+
+## 目标目录树
 
 ```
 src_deepagent/
-├── main.py                              # FastAPI 入口 + lifespan
-├── config/
-│   └── settings.py                      # Pydantic BaseSettings
 │
-├── core/                                # 核心基础设施（跨模块共享）
-│   ├── logging.py                       # 结构化日志
-│   ├── exceptions.py                    # 异常层级
-│   └── types.py                         # 共享类型定义
+├── main.py                         # FastAPI 应用工厂 + lifespan
+├── schemas/                        # 全局数据模型（跨支柱共享）
+│   ├── agent.py                    # TaskNode, ExecutionDAG, SessionStatus
+│   ├── api.py                      # QueryRequest, QueryResponse, EventType
+│   ├── sandbox.py                  # SandboxTask, Artifact, SandboxResult
+│   └── a2ui.py                     # A2UI 事件模型
 │
-│  ┌─────────────────────────────────────────────────────────┐
-│  │  支柱 1: 上下文系统 — 决定模型"知道什么"                │
-│  └─────────────────────────────────────────────────────────┘
+│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+│ 支柱一：上下文系统
 ├── context/
-│   ├── __init__.py
-│   ├── builder.py                       # 上下文组装器（替代 prompts/system.py）
-│   ├── runtime.py                       # 运行时上下文（session/user/env）
-│   └── templates/                       # 提示词模板（独立维护）
-│       ├── role.md
-│       ├── runtime_context.md
-│       ├── thinking_style.md
-│       ├── clarification.md
-│       ├── mode_direct.md
-│       ├── mode_auto.md
-│       ├── mode_plan_and_execute.md
-│       ├── mode_sub_agent.md
-│       ├── tool_usage.md
-│       ├── subagent_system.md
-│       ├── response_style.md
-│       └── critical_reminders.md
+│   └── builder.py                  # System Prompt 构建器（12 段模板）
 │
-│  ┌─────────────────────────────────────────────────────────┐
-│  │  支柱 2: 工具系统 — 决定模型"能做什么"                  │
-│  └─────────────────────────────────────────────────────────┘
-├── capabilities/
-│   ├── __init__.py
-│   ├── registry.py                      # 统一能力注册表
-│   ├── base_tools.py                    # 10 个内置工具（从 bridge.py 迁移）
-│   ├── skills/                          # Skills 子系统
-│   │   ├── __init__.py
-│   │   ├── registry.py                  # 三阶段渐进加载注册表
-│   │   └── schema.py                    # SkillMetadata / SkillInfo
-│   └── mcp/                             # MCP 子系统
-│       ├── __init__.py
-│       └── deferred_registry.py         # 渐进式加载注册表
-│
-│  ┌─────────────────────────────────────────────────────────┐
-│  │  支柱 3: 记忆系统 — 决定模型"记得什么"                  │
-│  └─────────────────────────────────────────────────────────┘
-├── memory/
-│   ├── __init__.py
-│   ├── storage.py                       # MemoryStorage ABC（含 consolidate/search 扩展点）
-│   ├── retriever.py                     # 记忆检索（200ms 超时降级）
-│   ├── updater.py                       # LLM 抽取 + 分布式锁更新
-│   └── schema.py                        # UserProfile / Fact / MemoryData
-│
-│  ┌─────────────────────────────────────────────────────────┐
-│  │  支柱 4: Agent 协作 — 决定"任务怎么分工"                │
-│  └─────────────────────────────────────────────────────────┘
+│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+│ 支柱二：编排系统
 ├── orchestrator/
-│   ├── __init__.py
-│   ├── reasoning_engine.py              # 推理引擎（意图+复杂度+模式路由）
-│   ├── agent_factory.py                 # 主 Agent 工厂
-│   ├── hooks.py                         # 事件钩子（推送/循环检测）
-│   └── planning.py                      # DAG 规划 prompt
+│   ├── reasoning_engine.py         # 五维度复杂度评估 → 四种执行模式
+│   ├── agent_factory.py            # 主 Agent 创建（pydantic-ai）
+│   ├── hooks.py                    # 循环检测 + 审计钩子
+│   └── planning.py                 # DAG 规划 Prompt 模板
 │
-├── agents/                              # Agent 定义（替代 sub_agents/）
-│   ├── __init__.py
-│   ├── factory.py                       # Sub-Agent 配置工厂（预置 + 自定义合并）
-│   ├── models.py                        # SubAgentInput / SubAgentOutput
-│   ├── roles.py                         # 预置角色 System Prompt
-│   └── custom/                          # 自定义 Agent（Agent OS）
-│       ├── __init__.py
-│       └── registry.py                  # AGENT.md 扫描 + 注册
+│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+│ 支柱三：能力系统
+├── capabilities/
+│   ├── registry.py                 # CapabilityRegistry（统一注册 + 分发）
+│   ├── base_tools.py               # 10 内置工具（按职责分组）
+│   ├── event_publishing.py         # EventPublishingCapability
+│   ├── skill_creator.py            # Skill 创建工具
+│   ├── mcp/
+│   │   └── client_manager.py       # MCP 多端点管理（延迟加载 + 定期刷新）
+│   └── skills/
+│       ├── registry.py             # Skill 自动扫描注册
+│       └── schema.py               # SkillMeta 数据模型
 │
-│  ┌─────────────────────────────────────────────────────────┐
-│  │  支柱 5: 安全系统 — 决定"边界在哪里"                    │
-│  └─────────────────────────────────────────────────────────┘
-├── security/
-│   ├── __init__.py
-│   ├── permissions.py                   # 工具级权限模型（allow/deny/ask）
-│   ├── sandbox_policy.py                # 沙箱安全策略（网络/文件/进程）
-│   ├── injection_guard.py               # Prompt 注入检测
-│   └── audit.py                         # 审计日志（工具调用链追踪）
-│
-│  ┌─────────────────────────────────────────────────────────┐
-│  │  支柱 6: 全链路监控                                     │
-│  └─────────────────────────────────────────────────────────┘
-├── monitoring/
-│   ├── __init__.py
-│   ├── arms_tracer.py                   # ARMS 应用监控（链路追踪）
-│   ├── langfuse_tracer.py               # Langfuse 模型交互监控
-│   ├── metrics.py                       # Prometheus 指标导出（→ Grafana）
-│   └── pipeline_events.py              # 管道事件（步骤计时/元数据）
-│
-│  ┌─────────────────────────────────────────────────────────┐
-│  │  支柱 7: 事件流                                         │
-│  └─────────────────────────────────────────────────────────┘
-├── streaming/
-│   ├── __init__.py
-│   ├── protocol.py                      # 前后端数据协议定义（EventType 枚举）
-│   ├── stream_adapter.py                # Redis Streams 适配器
-│   ├── sse_endpoint.py                  # SSE 端点
-│   └── recovery.py                      # 中断恢复 + 断点续传
-│
-│  ┌─────────────────────────────────────────────────────────┐
-│  │  支柱 8: LLM Provider                                   │
-│  └─────────────────────────────────────────────────────────┘
-├── llm/
-│   ├── __init__.py
-│   ├── provider.py                      # 多提供商管理（路由 + 降级 + 重试）
-│   ├── config.py                        # 模型配置工厂
-│   └── token_manager.py                 # 沙箱临时 JWT
-│
-│  ┌─────────────────────────────────────────────────────────┐
-│  │  支柱 9: Token 计费                                     │
-│  └─────────────────────────────────────────────────────────┘
-├── billing/
-│   ├── __init__.py
-│   ├── tracker.py                       # 用量追踪（per request/session/user）
-│   ├── quota.py                         # 配额管理（限额 + 告警）
-│   └── reporter.py                      # 用量报告（日/周/月汇总）
-│
-│  ┌─────────────────────────────────────────────────────────┐
-│  │  执行层 + 网关 + 状态 + 数据模型                        │
-│  └─────────────────────────────────────────────────────────┘
-├── workers/                             # 执行层（确定性执行器）
-│   ├── __init__.py
-│   ├── base.py                          # WorkerProtocol + BaseWorker
+│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+│ 支柱四：执行层
+├── workers/
+│   ├── base.py                     # BaseWorker 模板方法
 │   ├── native/
-│   │   ├── rag_worker.py
-│   │   ├── db_query_worker.py
-│   │   └── api_call_worker.py
+│   │   └── web_search_worker.py    # 网络搜索 Worker
 │   └── sandbox/
-│       ├── sandbox_worker.py
-│       ├── sandbox_manager.py
-│       ├── pi_agent_config.py
-│       └── ipc.py
+│       ├── sandbox_worker.py       # 沙箱任务编排
+│       ├── sandbox_manager.py      # 沙箱生命周期（E2B / 本地）
+│       ├── pi_agent_config.py      # Pi Agent 启动脚本生成
+│       └── ipc.py                  # JSONL IPC 解析
 │
-├── gateway/                             # API 网关
-│   ├── __init__.py
-│   ├── rest_api.py
-│   └── websocket_api.py
+│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+│ 支柱五：事件流
+├── streaming/
+│   ├── protocol.py                 # 事件类型枚举（A2UI 协议）
+│   ├── stream_adapter.py           # Redis Streams 读写适配
+│   ├── sse_endpoint.py             # SSE 事件生成器（断点续传）
+│   └── recovery.py                 # 断点续传恢复逻辑
 │
-├── state/                               # 状态管理
-│   ├── __init__.py
-│   └── session_manager.py
+│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+│ 支柱六：记忆系统
+├── memory/
+│   ├── storage.py                  # MemoryStorage ABC + RedisMemoryStorage
+│   ├── schema.py                   # UserProfile, Fact, MemoryData
+│   ├── retriever.py                # 记忆检索（200ms 超时降级）
+│   └── updater.py                  # 记忆写入 / 更新
 │
-└── schemas/                             # 共享数据模型
-    ├── __init__.py
-    ├── agent.py                         # TaskNode / ExecutionDAG / OrchestratorOutput
-    ├── api.py                           # QueryRequest / QueryResponse
-    └── sandbox.py                       # SandboxTask / SandboxResult / Artifact
+│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+│ 基础设施层
+├── infra/                          # 新增：基础设施聚合目录
+│   ├── llm/                        # 原 llm/（整体迁入）
+│   │   ├── catalog.py
+│   │   ├── registry.py
+│   │   ├── schemas.py
+│   │   ├── compatibility.py
+│   │   ├── token_manager.py
+│   │   ├── models.yaml
+│   │   └── providers/
+│   │       ├── base.py
+│   │       ├── anthropic_native.py
+│   │       └── openai_compat.py
+│   ├── state/                      # 原 state/（整体迁入）
+│   │   └── session_manager.py
+│   ├── security/                   # 原 security/（整体迁入）
+│   │   ├── audit.py
+│   │   ├── injection_guard.py
+│   │   ├── permissions.py
+│   │   └── sandbox_policy.py
+│   └── monitoring/                 # 原 monitoring/（整体迁入）
+│       ├── langfuse_tracer.py
+│       ├── arms_tracer.py
+│       ├── metrics.py
+│       └── pipeline_events.py
+│
+│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+│ 对外接口层
+├── gateway/
+│   ├── rest_api.py                 # REST 路由（/api/agent/query 等）
+│   └── websocket_api.py            # WebSocket 连接管理
+│
+│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+│ 公共基础
+├── core/
+│   ├── logging.py                  # 日志系统 + 上下文变量
+│   └── exceptions.py               # 自定义异常
+├── config/
+│   └── settings.py                 # Pydantic BaseSettings（所有配置项）
+└── agents/                         # Sub-Agent 工厂（保持不变）
+    ├── factory.py
+    ├── models.py
+    ├── roles.py
+    └── custom/
+        └── registry.py
 ```
 
-## 迁移映射
+---
+
+## 迁移映射表
 
 | 旧路径 | 新路径 | 说明 |
 |--------|--------|------|
-| `orchestrator/prompts/system.py` | `context/builder.py` | Prompt 构建逻辑迁入上下文模块 |
-| `orchestrator/prompts/templates/` | `context/templates/` | 模板文件独立维护 |
-| `orchestrator/prompts/planning.py` | `orchestrator/planning.py` | 规划 Prompt 留在编排层 |
-| `orchestrator/deferred_tools.py` | `capabilities/mcp/deferred_registry.py` | MCP 延迟加载归入工具系统 |
-| `orchestrator/custom_agents.py` | `agents/custom/registry.py` | 自定义 Agent 独立管理 |
-| `sub_agents/bridge.py` | `capabilities/base_tools.py` | 工具桥接归入能力注册 |
-| `sub_agents/factory.py` | `agents/factory.py` | Sub-Agent 工厂 |
-| `sub_agents/models.py` | `agents/models.py` | 数据模型 |
-| `sub_agents/prompts.py` | `agents/roles.py` | 角色 Prompt |
-| `skills/registry.py` | `capabilities/skills/registry.py` | Skill 注册归入工具系统 |
-| `skills/schema.py` | `capabilities/skills/schema.py` | Skill 数据模型 |
-| （新增） | `core/` | 跨模块共享基础设施 |
-| （新增） | `security/` | 安全系统（预留） |
-| （新增） | `billing/` | 计费系统（预留） |
-| （新增） | `streaming/protocol.py` | 事件协议定义（预留） |
-| （新增） | `streaming/recovery.py` | 断点续传（预留） |
-| （新增） | `llm/provider.py` | 多提供商路由（预留） |
-| （新增） | `monitoring/arms_tracer.py` | ARMS 监控（预留） |
-| （新增） | `monitoring/metrics.py` | Prometheus 指标（预留） |
+| `src_deepagent/llm/` | `src_deepagent/infra/llm/` | 整体迁入 infra |
+| `src_deepagent/state/` | `src_deepagent/infra/state/` | 整体迁入 infra |
+| `src_deepagent/security/` | `src_deepagent/infra/security/` | 整体迁入 infra |
+| `src_deepagent/monitoring/` | `src_deepagent/infra/monitoring/` | 整体迁入 infra |
+| `src_deepagent/billing/` | `src_deepagent/infra/billing/` | 整体迁入 infra（新增） |
+| 其余模块 | 路径不变 | context / orchestrator / capabilities / workers / streaming / memory / gateway / core / config / agents / schemas |
 
-## 模块依赖关系
+---
 
-```mermaid
-graph TB
-    GW["gateway"] --> ORCH["orchestrator"]
-    GW --> STR["streaming"]
-    GW --> STATE["state"]
-    ORCH --> CAP["capabilities"]
-    ORCH --> CTX["context"]
-    ORCH --> AGT["agents"]
-    ORCH --> LLM["llm"]
-    CAP --> WK["workers"]
-    CAP --> MEM["memory"]
-    AGT --> CAP
-
-    SEC["security"] -.->|横切| GW
-    SEC -.->|横切| WK
-    MON["monitoring"] -.->|横切| GW
-    MON -.->|横切| ORCH
-    BILL["billing"] -.->|横切| LLM
-
-    style GW fill:#e6f3ff,stroke:#4a90d9
-    style ORCH fill:#fff3e6,stroke:#d9904a
-    style CAP fill:#e6ffe6,stroke:#4a9d4a
-    style WK fill:#ffe6e6,stroke:#d94a4a
-```
-
-依赖方向总结：
+## 模块依赖方向
 
 ```
-gateway → orchestrator → capabilities → workers
-              ↓               ↓
-           agents          context
-              ↓               ↓
-           memory         templates/
-
-security → 横切所有模块（AOP 方式）
-monitoring → 横切所有模块
-streaming → gateway + orchestrator
-billing → llm + orchestrator
-state → gateway
+gateway → orchestrator → context → memory
+                       → capabilities → workers → streaming
+                       → infra/llm
+                       → agents
+                       → infra/state
+                       → infra/security
+                       → infra/monitoring
+core ← 所有模块（日志、异常）
+schemas ← 所有模块（数据模型）
 ```
+
+依赖规则：
+- `infra/` 只被上层模块依赖，自身不依赖业务模块
+- `core/` 和 `schemas/` 是叶节点，不依赖其他业务模块
+- `streaming/` 只被 `workers/` 和 `gateway/` 依赖，不反向依赖
+
+---
 
 ## 关键接口示例
 
-### CapabilityRegistry — 统一能力注册表
+### CapabilityRegistry（能力注册表）
 
 ```python
 class CapabilityRegistry:
-    """汇总所有工具来源，替代 ReasoningEngine._resolve_resources() 中散落的 import"""
-
-    def __init__(self, workers):
-        self._base_tools = create_base_tools(workers)
-        self._skill_registry = SkillRegistry()
-        self._mcp_registry = DeferredToolRegistry()
-
-    def get_agent_tools(self) -> list[Callable]:
-        """返回所有 base tools"""
-        return self._base_tools
-
-    def get_prompt_context(self) -> PromptContext:
-        """注入 prompt 的文本摘要"""
-        return PromptContext(
-            skill_summary=self._skill_registry.get_skill_summary(),
-            deferred_tool_names=self._mcp_registry.get_tool_names(),
-        )
+    def register_tool(self, group: str, fn: Callable) -> None: ...
+    def register_skill(self, meta: SkillMeta) -> None: ...
+    def get_tools(self, groups: list[str]) -> list[Callable]: ...
+    def get_mcp_toolsets(self) -> list[MCPToolset]: ...
 ```
 
-### agents/factory.py — Sub-Agent 配置工厂
+### ReasoningEngine（推理引擎）
 
 ```python
-def create_all_agent_configs(agent_tools, custom_dir="agents") -> list[dict]:
-    """合并预置角色 + 自定义角色"""
-    from agents.custom.registry import CustomAgentRegistry
+class ReasoningEngine:
+    async def startup(self) -> None: ...
+    async def shutdown(self) -> None: ...
+    async def get_plan(self, query: str, session_id: str) -> ExecutionPlan: ...
 
-    tool_map = {t.__name__: t for t in agent_tools}
+@dataclass
+class ExecutionPlan:
+    mode: ExecutionMode          # DIRECT / AUTO / PLAN_AND_EXECUTE / SUB_AGENT
+    prompt_prefix: str
+    resources: ResolvedResources
+```
 
-    # 预置角色（researcher/analyst/writer）
-    builtin = create_builtin_configs(tool_map)
+### BaseWorker（执行层模板）
 
-    # 自定义角色（扫描 agents/ 目录下的 AGENT.md）
-    custom_registry = CustomAgentRegistry()
-    custom_registry.scan(custom_dir)
-    custom = custom_registry.to_sub_agent_configs(tool_map)
+```python
+class BaseWorker(ABC):
+    @property
+    @abstractmethod
+    def name(self) -> str: ...
 
-    return builtin + custom
+    async def execute(self, task: TaskNode) -> WorkerResult: ...  # 模板方法
+
+    @abstractmethod
+    async def _do_execute(self, task: TaskNode) -> WorkerResult: ...
 ```

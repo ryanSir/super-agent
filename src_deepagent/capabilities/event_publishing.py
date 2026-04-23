@@ -42,7 +42,7 @@ def _infer_tool_type(tool_name: str) -> str:
         return "sandbox"
     if tool_name in _NATIVE_TOOLS:
         return "native_worker"
-    if tool_name == "execute_skill":
+    if tool_name in {"execute_skill", "load_skill"}:
         return "skill"
     if tool_name in _BUILTIN_TOOLS:
         return "builtin"

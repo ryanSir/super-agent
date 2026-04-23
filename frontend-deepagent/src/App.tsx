@@ -92,7 +92,7 @@ function App() {
   // 拉取 skill 列表
   useEffect(() => {
     const isDev = import.meta.env.DEV
-    const host = isDev ? 'http://localhost:9001' : ''
+    const host = isDev ? `http://${window.location.hostname}:9001` : ''
     fetch(`${host}/api/agent/skills`)
       .then((r) => r.json())
       .then((data) => {
@@ -103,7 +103,7 @@ function App() {
 
   useEffect(() => {
     const isDev = import.meta.env.DEV
-    const host = isDev ? 'http://localhost:9001' : ''
+    const host = isDev ? `http://${window.location.hostname}:9001` : ''
     fetch(`${host}/api/agent/models`)
       .then((r) => r.json())
       .then((data) => {
@@ -115,7 +115,7 @@ function App() {
 
   const handleModelChange = useCallback(async (modelKey: string) => {
     const isDev = import.meta.env.DEV
-    const host = isDev ? 'http://localhost:9001' : ''
+    const host = isDev ? `http://${window.location.hostname}:9001` : ''
     setOrchestratorModel(modelKey)
     await fetch(`${host}/api/agent/roles/orchestrator`, {
       method: 'PATCH',

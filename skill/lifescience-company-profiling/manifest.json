@@ -1,0 +1,16 @@
+{
+  "version": "1.0",
+  "exported_at": "2026-04-21T02:04:15.080927Z",
+  "skill": {
+    "name": "lifescience-company-profiling",
+    "source": "official",
+    "owner_id": null,
+    "review_status": null,
+    "version": null,
+    "published_version": null
+  },
+  "tags": [],
+  "metadata": {},
+  "preferences": {},
+  "extensions": {}
+}

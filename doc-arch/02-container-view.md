@@ -1,142 +1,73 @@
-# C4 Level 2: 容器视图
+# C4 Level 2：容器视图
 
 ## 容器架构图
 
 ```mermaid
 graph TB
-    subgraph Client["客户端"]
-        WebUI["React SPA<br/>TypeScript + Vite<br/>A2UI 渲染引擎<br/>:5173"]
-        CLI["CLI 测试工具<br/>cli.py"]
+    Browser["浏览器\nReact SPA"]
+
+    subgraph SuperAgent["Super Agent 进程（端口 9001）"]
+        Gateway["API 网关\nFastAPI Router"]
+        Orchestrator["编排引擎\nReasoningEngine + AgentFactory"]
+        Workers["执行层\nSandboxWorker + WebSearchWorker"]
+        SSE["SSE 端点\nsse_event_generator"]
     end
 
-    subgraph Backend["FastAPI 后端 :9001"]
-        Gateway["API Gateway<br/>rest_api.py / websocket_api.py"]
-        Orchestrator["Orchestrator<br/>ReasoningEngine + AgentFactory"]
-        Agent["PydanticAI Agent<br/>pydantic-deep 框架"]
-        Workers["Workers<br/>RAG / DB / API / Sandbox"]
-        Streaming["Streaming<br/>SSE Endpoint + Stream Adapter"]
+    subgraph Sandbox["沙箱进程（本地子进程 / E2B Cloud）"]
+        PiAgent["Pi Agent\npydantic-ai + 工具集"]
     end
 
-    subgraph Infra["基础设施"]
-        Redis["Redis<br/>Stream: 事件流<br/>Hash: 会话状态<br/>SortedSet: 用户记忆"]
-        Sandbox["E2B Sandbox<br/>Pi Coding Agent<br/>隔离代码执行"]
-    end
+    Redis[("Redis\nStreams + Hash")]
+    LLM["LLM API\nAnthropic / OpenAI 兼容"]
+    MCP["MCP Server\n外部工具"]
 
-    subgraph External["外部服务"]
-        LLM["LLM Providers<br/>Claude / GPT / Groq"]
-        MCPServer["MCP Server"]
-        Langfuse["Langfuse"]
-    end
-
-    WebUI -->|"POST /api/agent/query"| Gateway
-    WebUI -->|"GET /api/agent/stream/{id}"| Streaming
-    CLI -->|"HTTP"| Gateway
-
+    Browser -->|"POST /api/agent/query"| Gateway
+    Browser -->|"GET /api/agent/stream/{id} SSE"| SSE
     Gateway --> Orchestrator
-    Orchestrator --> Agent
-    Agent --> Workers
-    Agent -->|"Sub-Agent 委派"| Agent
-
-    Workers -->|"沙箱任务"| Sandbox
-    Streaming -->|"XREAD"| Redis
-    Gateway -->|"XADD 事件"| Redis
-    Gateway -->|"会话 CRUD"| Redis
-
-    Agent -->|"推理请求"| LLM
-    Workers -->|"工具调用"| MCPServer
-    Agent -->|"调用追踪"| Langfuse
-
-    style Backend fill:#e6f3ff,stroke:#4a90d9,stroke-width:2px
-    style Infra fill:#ffe6e6,stroke:#d94a4a
-    style External fill:#fff3e6,stroke:#d9904a
+    Orchestrator --> Workers
+    Orchestrator -->|"Anthropic / OpenAI API"| LLM
+    Workers -->|"启动脚本 + JSONL IPC"| PiAgent
+    PiAgent -->|"LLM API（独立 Token）"| LLM
+    Workers -->|"写入事件"| Redis
+    SSE -->|"读取事件流"| Redis
+    Orchestrator -->|"MCP SSE"| MCP
+    Gateway -->|"会话状态"| Redis
 ```
 
-## 容器清单
+## 各容器说明
 
-### FastAPI 后端
-
-| 属性 | 值 |
-|------|-----|
-| 语言 | Python 3.12 |
-| 框架 | FastAPI + Uvicorn |
-| Agent 框架 | PydanticAI + pydantic-deep |
-| 默认端口 | 9001 |
-| 入口 | `src_deepagent/main.py` |
-| 启动命令 | `python run_deepagent.py` |
-
-核心职责：接收请求 → 推理决策 → 创建 Agent → 执行任务 → 推送事件流。
-
-### React 前端
-
-| 属性 | 值 |
-|------|-----|
-| 语言 | TypeScript 5.6 |
-| 框架 | React 18.3 + Vite 6.0 |
-| 关键依赖 | ECharts 5.5, xterm 5.5 |
-| 默认端口 | 5173 |
-| 入口 | `frontend-deepagent/src/main.tsx` |
-
-核心职责：SSE 事件消费 → A2UI 动态组件渲染 → 用户交互。
-
-### Redis
-
-| 用途 | 数据结构 | Key 模式 |
-|------|----------|----------|
-| SSE 事件流 | Stream | `stream:{session_id}` |
-| 会话状态 | Hash | `session:{session_id}` |
-| 对话历史 | List | `conversation:{session_id}:messages` |
-| 用户记忆 (Profile) | Hash | `memory:{user_id}:profile` |
-| 用户记忆 (Facts) | SortedSet | `memory:{user_id}:facts` |
-
-### E2B Sandbox
-
-| 模式 | 隔离级别 | API Key 方式 | 适用场景 |
-|------|----------|-------------|----------|
-| Local | 无（子进程） | 直接使用宿主 Key | 开发调试 |
-| E2B Cloud | 完整容器隔离 | 临时 JWT (10min) | 生产环境 |
-
-沙箱内运行 Pi Coding Agent，通过 JSONL 协议与宿主通信。
+| 容器 | 语言/框架 | 端口 | 入口 | 职责 |
+|------|---------|------|------|------|
+| Super Agent 后端 | Python 3.12 + FastAPI + uvicorn | 9001 | `run_deepagent.py` | 编排、路由、状态管理、事件推送 |
+| React 前端 | TypeScript + React 18 + Vite | 5173（dev） | `frontend-deepagent/src/main.tsx` | A2UI 动态渲染、SSE 消费、用户交互 |
+| 沙箱进程 | Python（Pi Agent） | N/A（IPC） | 由 SandboxWorker 动态启动 | 隔离代码执行、工具调用 |
+| Redis | Redis 7+ | 6379 | — | 会话状态、事件流（Streams）、记忆存储 |
+| LLM API | — | 443 | — | 推理服务（Anthropic / OpenAI 兼容网关） |
 
 ## 通信协议
 
-```
-┌──────────┐  REST (JSON)   ┌──────────┐  Redis Stream  ┌───────┐
-│  前端/CLI │ ──────────────→│  后端    │ ──────────────→│ Redis │
-│          │  SSE (text/    │          │  XADD/XREAD   │       │
-│          │  event-stream) │          │                │       │
-│          │ ←──────────────│          │ ←──────────────│       │
-└──────────┘                └──────────┘                └───────┘
-                                │
-                    ┌───────────┼───────────┐
-                    ▼           ▼           ▼
-              ┌──────────┐ ┌────────┐ ┌──────────┐
-              │ LLM API  │ │  E2B   │ │   MCP    │
-              │ (HTTPS)  │ │(HTTPS/ │ │  (SSE)   │
-              │          │ │ Local) │ │          │
-              └──────────┘ └────────┘ └──────────┘
-```
-
 | 路径 | 协议 | 说明 |
 |------|------|------|
-| 前端 → 后端 | HTTP REST | 提交查询、获取状态 |
-| 后端 → 前端 | SSE (Server-Sent Events) | 实时事件推送，支持断点续传 |
-| 后端 → Redis | Redis Protocol | 事件存储、会话管理、记忆读写 |
-| 后端 → LLM | HTTPS (OpenAI 兼容) | 通过 LiteLLM 统一路由 |
-| 后端 → E2B | HTTPS / 本地子进程 | 沙箱生命周期管理 + 代码执行 |
-| 后端 → MCP | SSE (MCP Protocol) | 外部工具发现与调用 |
-| 后端 → Langfuse | HTTPS | 异步上报追踪数据 |
+| 浏览器 → 后端（查询） | HTTP POST + JSON | `POST /api/agent/query`，同步返回 session_id |
+| 浏览器 → 后端（事件） | SSE（HTTP GET） | `GET /api/agent/stream/{session_id}`，支持 Last-Event-ID 断点续传 |
+| 浏览器 → 后端（WebSocket） | WebSocket | 备用双向通道，`websocket_api.py` |
+| 后端 → LLM | HTTPS + JSON | Anthropic 原生 SDK 或 OpenAI 兼容 HTTP |
+| 后端 → 沙箱 | 本地子进程 JSONL | 标准输入/输出，JSONL 格式事件 |
+| 后端 → Redis | TCP（redis-py） | Streams（XADD/XREAD）+ Hash（HSET/HGET） |
+| 后端 → MCP | HTTP SSE / Streamable | MCP 协议，延迟建立连接 |
 
 ## 技术栈总览
 
-| 层级 | 技术 | 版本 |
+| 层次 | 技术 | 版本 |
 |------|------|------|
-| 后端框架 | FastAPI + Uvicorn | - |
-| Agent 框架 | PydanticAI + pydantic-deep | - |
-| LLM 路由 | LiteLLM | - |
-| 前端框架 | React + Vite | 18.3 / 6.0 |
-| 缓存/消息 | Redis | - |
-| 向量数据库 | Milvus | - |
-| 沙箱 | E2B (Tencent) / Local | - |
-| 监控 | Langfuse + OpenTelemetry | - |
-| 配置管理 | Pydantic BaseSettings + .env | - |
-| 包管理 | Poetry (pyproject.toml) | - |
+| Web 框架 | FastAPI + uvicorn | 0.115 / 0.34 |
+| Agent 框架 | pydantic-ai + pydantic-deep | 1.84.1 / 0.3.3 |
+| LLM 多提供商 | anthropic + litellm + openai | 0.96 / 1.55 / 2.29 |
+| 状态存储 | redis[hiredis] | 5.2 |
+| 沙箱 | e2b + e2b-code-interpreter | 1.2 / 1.1 |
+| 向量数据库 | pymilvus | 2.5 |
+| 工作流引擎 | temporalio | 1.9（预留） |
+| MCP | mcp + fastmcp | 1.26 / 3.2 |
+| 可观测性 | langfuse + logfire | 4.0 / 4.29 |
+| 前端框架 | React + TypeScript + Vite | 18.3 / 5.6 / 6.0 |
+| 前端可视化 | echarts + xterm | 5.5 / 5.5 |

@@ -1,0 +1,16 @@
+{
+  "version": "1.0",
+  "exported_at": "2026-04-23T03:08:03.635639Z",
+  "skill": {
+    "name": "lifescience-meta-router",
+    "source": "official",
+    "owner_id": null,
+    "review_status": null,
+    "version": null,
+    "published_version": null
+  },
+  "tags": [],
+  "metadata": {},
+  "preferences": {},
+  "extensions": {}
+}

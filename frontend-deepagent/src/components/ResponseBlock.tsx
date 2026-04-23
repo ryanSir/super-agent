@@ -8,6 +8,7 @@ import React, { useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
+import rehypeRaw from 'rehype-raw'
 import { ResponseState } from '../engine/MessageHandler'
 import { renderWidget } from '../engine/ComponentRegistry'
 import ThinkingSection from './ThinkingSection'
@@ -140,7 +141,7 @@ function renderAnswer(answer: string): React.ReactNode[] {
       <ReactMarkdown
         key={i}
         remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeHighlight]}
+        rehypePlugins={[rehypeRaw, rehypeHighlight]}
         components={{ pre: CodeBlock as any }}
       >
         {part}

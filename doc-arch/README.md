@@ -1,31 +1,32 @@
 # Super Agent 架构文档
 
-本目录包含 Super Agent 项目的完整架构文档，基于 C4 模型组织，从宏观到微观逐层展开。
+> 生成日期：2026-04-23 | 基于代码版本：agent-core-v2
 
-## 文档索引
+## 文档导航
 
 | 文档 | 内容 | 适合谁看 |
-|------|------|----------|
-| [01-system-context.md](./01-system-context.md) | C4 L1: 系统上下文 — Super Agent 与外部系统的关系 | 所有人 |
-| [02-container-view.md](./02-container-view.md) | C4 L2: 容器视图 — 运行时进程、服务与通信协议 | 架构师、运维 |
-| [03-component-view.md](./03-component-view.md) | C4 L3: 组件视图 — 后端 9 大支柱模块详解 | 开发者 |
-| [04-runtime-flows.md](./04-runtime-flows.md) | 运行时数据流 — 核心链路时序图与状态机 | 开发者 |
-| [05-tech-decisions.md](./05-tech-decisions.md) | 技术选型与决策记录 (ADR) | 架构师、新成员 |
-| [06-deployment-guide.md](./06-deployment-guide.md) | 部署与配置指南 | 运维、开发者 |
-| [07-directory-restructure.md](./07-directory-restructure.md) | 目录结构重构方案 — 目标目录树、迁移映射、模块依赖 | 架构师、开发者 |
+|------|------|---------|
+| [01-system-context.md](01-system-context.md) | 系统定位、外部依赖、架构支柱全景 | 所有人，首先阅读 |
+| [02-container-view.md](02-container-view.md) | 运行时进程/服务、通信协议、技术栈 | 运维、DevOps、新成员 |
+| [03-component-view.md](03-component-view.md) | 模块职责、依赖关系、对外接口 | 后端开发者 |
+| [04-runtime-flows.md](04-runtime-flows.md) | 请求链路、状态机、关键子流程时序 | 调试问题、理解执行逻辑 |
+| [05-tech-decisions.md](05-tech-decisions.md) | 技术选型 ADR、架构约束 | 技术负责人、架构评审 |
+| [06-deployment-guide.md](06-deployment-guide.md) | 环境要求、启动步骤、环境变量 | 部署、本地开发 |
+| [07-directory-restructure.md](07-directory-restructure.md) | 目录重构方案、迁移映射 | 重构规划 |
 
 ## 建议阅读顺序
 
-1. 先看 01 了解系统全貌和外部依赖
-2. 再看 02 理解运行时架构和技术栈
-3. 然后看 03 深入各模块职责和边界
-4. 04 适合需要理解请求处理链路的开发者
-5. 05/06 按需查阅
+1. `01-system-context.md` — 建立全局视角
+2. `02-container-view.md` — 理解运行时结构
+3. `06-deployment-guide.md` — 跑起来
+4. `03-component-view.md` — 深入模块细节
+5. `04-runtime-flows.md` — 追踪请求链路
+6. `05-tech-decisions.md` — 理解选型背后的权衡
 
 ## 项目状态
 
-当前处于第一个里程碑（MVP），核心功能已实现，后续将持续完善。本文档描述的是已实现的架构，不包含未落地的规划。
-
-## 图表说明
-
-所有架构图使用 Mermaid 语法，可在 GitHub、VS Code（Mermaid 插件）、JetBrains IDE 中直接渲染。
+- 阶段：POC / 早期开发
+- 后端：FastAPI + PydanticAI，核心编排链路已通
+- 前端：React + Vite，A2UI 动态组件已实现
+- 沙箱：本地模式（E2B_USE_LOCAL=true）可用，E2B Cloud 待接入
+- 记忆/向量：Redis 已接入，Milvus 预留接口

@@ -59,15 +59,15 @@ models:
       tool_calling: true
       reasoning: true
 
-  deepseek_r1:
-    provider: rd_gateway
-    model: deepseek-r1
-    transport: openai_compat
-    reasoning_format: reasoning_content
-    capabilities:
-      streaming: true
-      tool_calling: true
-      reasoning: true
+#  deepseek_r1:
+#    provider: rd_gateway
+#    model: deepseek-r1
+#    transport: openai_compat
+#    reasoning_format: reasoning_content
+#    capabilities:
+#      streaming: true
+#      tool_calling: true
+#      reasoning: true
 
   gemini_25_flash:
     provider: rd_gateway

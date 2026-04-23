@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@xterm/xterm": "^5.5.0",
     "echarts": "^5.5.0",
     "echarts-for-react": "^3.0.2",
     "highlight.js": "^11.10.0",
@@ -16,8 +17,8 @@
     "react-dom": "^18.3.1",
     "react-markdown": "^9.0.1",
     "rehype-highlight": "^7.0.1",
-    "remark-gfm": "^4.0.0",
-    "@xterm/xterm": "^5.5.0"
+    "rehype-raw": "^7.0.0",
+    "remark-gfm": "^4.0.0"
   },
   "devDependencies": {
     "@types/react": "^18.3.12",

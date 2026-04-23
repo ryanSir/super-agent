@@ -19,7 +19,7 @@ export function createSSEClient(
   onError?: () => void,
 ): SSEClient {
   const isDev = import.meta.env.DEV
-  const host = isDev ? 'http://localhost:9001' : ''
+  const host = isDev ? `http://${window.location.hostname}:9001` : ''
   const url = `${host}/api/agent/stream/${sessionId}`
 
   const source = new EventSource(url)
@@ -73,7 +73,7 @@ export async function submitQuery(
   userId: string = 'default',
 ): Promise<{ success: boolean; session_id: string; trace_id: string }> {
   const isDev = import.meta.env.DEV
-  const host = isDev ? 'http://localhost:9001' : ''
+  const host = isDev ? `http://${window.location.hostname}:9001` : ''
 
   const res = await fetch(`${host}/api/agent/query`, {
     method: 'POST',
