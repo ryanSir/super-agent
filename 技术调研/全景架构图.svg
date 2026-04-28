@@ -1,0 +1,271 @@
+<svg width="1780" height="1120" xmlns="http://www.w3.org/2000/svg">
+ <defs>
+  <marker orient="auto" refY="3.5" refX="9" markerHeight="7" markerWidth="10" id="arrowA">
+   <polygon id="svg_1" fill="#d97757" points="0 0, 10 3.5, 0 7"/>
+  </marker>
+  <marker orient="auto" refY="3.5" refX="9" markerHeight="7" markerWidth="10" id="arrowB">
+   <polygon id="svg_2" fill="#7b8b5c" points="0 0, 10 3.5, 0 7"/>
+  </marker>
+  <marker orient="auto" refY="3.5" refX="9" markerHeight="7" markerWidth="10" id="arrowC">
+   <polygon id="svg_3" fill="#8c6f5a" points="0 0, 10 3.5, 0 7"/>
+  </marker>
+  <marker orient="auto" refY="3.5" refX="9" markerHeight="7" markerWidth="10" id="arrowE">
+   <polygon id="svg_4" fill="#b45309" points="0 0, 10 3.5, 0 7"/>
+  </marker>
+  <marker orient="auto" refY="3.5" refX="9" markerHeight="7" markerWidth="10" id="arrowF">
+   <polygon id="svg_5" fill="#9a6fb0" points="0 0, 10 3.5, 0 7"/>
+  </marker>
+  <style>text { font-family: 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', 'Microsoft JhengHei', 'SimHei', sans-serif; }
+    .title { font-size: 24px; font-weight: 700; fill: #141413; }
+    .subtitle { font-size: 13px; font-weight: 500; fill: #8f8a80; }
+    .section { font-size: 13px; font-weight: 700; fill: #8b7355; letter-spacing: 1.4px; }
+    .section-sub { font-size: 12px; font-weight: 500; fill: #b4aba0; }
+    .node-title { font-size: 18px; font-weight: 700; fill: #141413; }
+    .node-sub { font-size: 12px; font-weight: 500; fill: #6b6257; }
+    .node-type { font-size: 11px; font-weight: 700; fill: #a29a8f; letter-spacing: 0.08em; }
+    .arrow-label { font-size: 12px; font-weight: 600; fill: #6b6257; }
+    .legend { font-size: 12px; font-weight: 500; fill: #6b6257; }
+    .footnote { font-size: 12px; font-weight: 500; fill: #a29a8f; }</style>
+ </defs>
+ <g>
+  <title>background</title>
+  <rect fill="none" id="canvas_background" height="816" width="1609" y="-1" x="-1"/>
+ </g>
+ <g>
+  <title>Layer 1</title>
+  <rect stroke="null" x="-4" id="svg_8" fill="#f8f6f3" height="1120" width="1780"/>
+  <text id="svg_9" class="title" text-anchor="middle" y="56" x="890">Super Agent Detailed Technical Architecture</text>
+  <text id="svg_10" class="subtitle" text-anchor="middle" y="82" x="890">Fine-grained module view across frontend, gateway, orchestration, execution, storage, and external systems</text>
+  <rect stroke="#ded8cf" id="svg_11" stroke-width="1.4" fill="none" rx="16" height="138" width="1714.000053" y="118" x="21.999947"/>
+  <text id="svg_12" fill="#6b6257" font-weight="600" font-size="14" dominant-baseline="middle" text-anchor="start" y="135" x="31">Client Layer</text>
+  <rect stroke="#ded8cf" id="svg_13" stroke-width="1.4" fill="none" rx="16" height="170" width="1714.000053" y="284" x="21.999947"/>
+  <text id="svg_14" fill="#6b6257" font-weight="600" font-size="14" dominant-baseline="middle" text-anchor="start" y="302" x="30">Gateway + State Layer</text>
+  <rect stroke="#ded8cf" id="svg_15" stroke-width="1.4" fill="none" rx="16" height="262" width="1736.999972" y="484" x="20.00007"/>
+  <text id="svg_16" fill="#6b6257" font-weight="600" font-size="14" dominant-baseline="middle" text-anchor="start" y="503" x="24">Orchestration + Capability Layer</text>
+  <rect stroke="#ded8cf" id="svg_17" stroke-width="1.4" fill="none" rx="16" height="274" width="1736.999978" y="776" x="22.000038"/>
+  <text id="svg_18" fill="#6b6257" font-weight="600" font-size="14" dominant-baseline="middle" text-anchor="start" y="797" x="28">Execution + External Runtime</text>
+  <rect stroke="#ded8cf" id="svg_19" stroke-width="1.4" fill="none" rx="16" height="932" width="214.999995" y="118" x="1556"/>
+  <text id="svg_20" fill="#6b6257" font-weight="600" font-size="14" dominant-baseline="middle" text-anchor="middle" y="592" x="1656">Platform + Productization</text>
+  <path id="svg_21" marker-end="url(#arrowC)" stroke-width="2" stroke="#8c6f5a" fill="none" d="m226,186l20.4,0l19.2,-4l20.4,0"/>
+  <path id="svg_22" marker-end="url(#arrowC)" stroke-width="2" stroke="#8c6f5a" fill="none" d="m474,182l20.4,0l13.2,4l20.4,0"/>
+  <path id="svg_23" marker-end="url(#arrowC)" stroke-width="2" stroke="#8c6f5a" fill="none" d="m696,186l50,0"/>
+  <path id="svg_24" marker-end="url(#arrowC)" stroke-width="2" stroke="#8c6f5a" fill="none" d="m928,186l50,0"/>
+  <path id="svg_25" marker-end="url(#arrowC)" stroke-width="2" stroke="#8c6f5a" fill="none" d="m1160,186l50,0"/>
+  <path stroke="#8c6f5a" id="svg_26" marker-end="url(#arrowC)" stroke-width="2" fill="none" d="m380,218l20,17.88235l20,17.88236l0,60.23529l-42,0"/>
+  <path id="svg_27" marker-end="url(#arrowA)" stroke-width="2" stroke="#d97757" fill="none" d="m240,358l46,0"/>
+  <path id="svg_28" marker-end="url(#arrowA)" stroke-width="2" stroke="#d97757" fill="none" d="m472,358l76,0"/>
+  <path id="svg_29" marker-end="url(#arrowB)" stroke-width="2" stroke="#7b8b5c" fill="none" d="m734,358l76,0"/>
+  <path id="svg_30" marker-end="url(#arrowB)" stroke-width="2" stroke="#7b8b5c" fill="none" d="m992,358l76,0"/>
+  <path stroke="#9a6fb0" id="svg_31" marker-end="url(#arrowF)" stroke-width="2" fill="none" d="m1161,322l-1,-38l0,-150l-550,0l0,84l2,0"/>
+  <path stroke="#d97757" id="svg_32" marker-end="url(#arrowA)" stroke-width="2" fill="none" d="m379,396l-3.205742,56.1875l-130.794259,0l0,67.8125l0.641148,0"/>
+  <path id="svg_33" marker-end="url(#arrowA)" stroke-width="2" stroke="#d97757" fill="none" d="m262,562l40,0"/>
+  <path id="svg_34" marker-end="url(#arrowA)" stroke-width="2" stroke="#d97757" fill="none" d="m484,562l40,0"/>
+  <path id="svg_35" marker-end="url(#arrowA)" stroke-width="2" stroke="#d97757" fill="none" d="m696,562l40,0"/>
+  <path id="svg_36" marker-end="url(#arrowA)" stroke-width="2" stroke="#d97757" fill="none" d="m892,562l40,0"/>
+  <path id="svg_37" marker-end="url(#arrowA)" stroke-width="2" stroke="#d97757" fill="none" d="m1116,562l40,0"/>
+  <path id="svg_38" marker-end="url(#arrowC)" stroke-width="2" stroke="#8c6f5a" fill="none" d="m171,600l0,20.4l20,3.2l0,20.4"/>
+  <path id="svg_39" marker-end="url(#arrowC)" stroke-width="2" stroke="#8c6f5a" fill="none" d="m284,667l42,0"/>
+  <path id="svg_40" marker-end="url(#arrowA)" stroke-width="2" stroke="#d97757" fill="none" d="m393,600l0,20.4l265,0l0,23.6"/>
+  <path id="svg_41" marker-end="url(#arrowC)" stroke-width="2" stroke="#8c6f5a" fill="none" d="m1024,600l0,20.4l-131,0l0,23.6"/>
+  <path id="svg_42" marker-end="url(#arrowE)" stroke-width="2" stroke="#b45309" fill="none" d="m1262,600l0,20.4l-125,0l0,23.6"/>
+  <path id="svg_43" marker-end="url(#arrowE)" stroke-width="2" stroke="#b45309" fill="none" d="m1262,600l0,20.4l107,3.2l0,20.4"/>
+  <path stroke="#d97757" id="svg_44" marker-end="url(#arrowA)" stroke-width="2" fill="none" d="m1262,600l-1.864469,160l-1016.135503,0l0,68"/>
+  <path id="svg_45" marker-end="url(#arrowA)" stroke-width="2" stroke="#d97757" fill="none" d="m258,865l32,0"/>
+  <path id="svg_46" marker-end="url(#arrowA)" stroke-width="2" stroke="#d97757" fill="none" d="m482,865l32,0"/>
+  <path id="svg_47" marker-end="url(#arrowC)" stroke-width="2" stroke="#8c6f5a" fill="none" d="m1262,600l26,176l-495,0l0,52"/>
+  <path id="svg_48" marker-end="url(#arrowE)" stroke-width="2" stroke="#b45309" fill="none" d="m1137,690l0,20.4l-124,97.2l0,20.4"/>
+  <path id="svg_49" marker-end="url(#arrowC)" stroke-width="2" stroke="#8c6f5a" fill="none" d="m1369,690l0,20.4l-137,97.2l0,20.4"/>
+  <path id="svg_50" stroke-dasharray="6,4" marker-end="url(#arrowB)" stroke-width="2" stroke="#7b8b5c" fill="none" d="m641,394l176,60l0,338l608,0l0,24"/>
+  <path id="svg_51" stroke-dasharray="6,4" marker-end="url(#arrowB)" stroke-width="2" stroke="#7b8b5c" fill="none" d="m1161,394l111,60l0,332l153,0l0,30"/>
+  <path id="svg_52" stroke-dasharray="6,4" marker-end="url(#arrowB)" stroke-width="2" stroke="#7b8b5c" fill="none" d="m893,690l0,112l532,0l0,14"/>
+  <path id="svg_53" marker-end="url(#arrowC)" stroke-width="2" stroke="#8c6f5a" fill="none" d="m427,690l0,268l150,0"/>
+  <path id="svg_54" marker-end="url(#arrowA)" stroke-width="2" stroke="#d97757" fill="none" d="m386,902l0,20.4l-152,15.2l0,20.4"/>
+  <path id="svg_55" marker-end="url(#arrowE)" stroke-width="2" stroke="#b45309" fill="none" d="m322,980l148,0"/>
+  <path id="svg_56" marker-end="url(#arrowA)" stroke-width="2" stroke="#d97757" fill="none" d="m1407,394l0,20.4l4,0l0,543.6"/>
+  <path id="svg_57" marker-end="url(#arrowA)" stroke-width="2" stroke="#d97757" fill="none" d="m170,902l0,148l1148,0l0,-70"/>
+  <path id="svg_58" stroke-dasharray="6,4" marker-end="url(#arrowA)" stroke-width="2" stroke="#d97757" fill="none" d="m472,358l0,2l1076,0l0,-145l36,0"/>
+  <path id="svg_59" stroke-dasharray="6,4" marker-end="url(#arrowA)" stroke-width="2" stroke="#d97757" fill="none" d="m284,667l1264,0l0,-362l36,0"/>
+  <path id="svg_60" stroke-dasharray="6,4" marker-end="url(#arrowA)" stroke-width="2" stroke="#d97757" fill="none" d="m1484,358l0,2l64,0l0,35l36,0"/>
+  <path id="svg_61" marker-end="url(#arrowA)" stroke-width="2" stroke="#d97757" fill="none" d="m241,358l0,2l1308,0l0,453l36,0"/>
+  <path stroke="#8c6f5a" id="svg_62" marker-end="url(#arrowC)" stroke-width="2" fill="none" d="m474,182l1074,0l0,721l36,0"/>
+  <path id="svg_63" marker-end="url(#arrowA)" stroke-width="2" stroke="#d97757" fill="none" d="m1116,562l432,0l0,431l36,0"/>
+  <rect id="svg_64" stroke-width="1.8" stroke="#7f6a59" fill="#d7e8fb" rx="10" height="64" width="140" y="154" x="86"/>
+  <text id="svg_65" class="node-type" text-anchor="middle" y="172" x="156">ENTRY</text>
+  <text id="svg_66" class="node-title" text-anchor="middle" y="192" x="156">Browser UI</text>
+  <text id="svg_67" class="node-sub" text-anchor="middle" y="214" x="156">chat surface</text>
+  <rect id="svg_68" stroke-width="2" stroke="#7f6a59" fill="#d7e8fb" rx="10" height="72" width="188" y="146" x="286"/>
+  <rect id="svg_69" opacity="0.65" stroke-width="1.2" stroke="#7f6a59" fill="none" rx="7" height="60" width="176" y="152" x="292"/>
+  <text id="svg_70" class="node-type" text-anchor="middle" y="164" x="380">FRONTEND</text>
+  <text id="svg_71" class="node-title" text-anchor="middle" y="188" x="380">App.tsx</text>
+  <text id="svg_72" class="node-sub" text-anchor="middle" y="210" x="380">input + mode + model state</text>
+  <rect id="svg_73" stroke-width="1.8" stroke="#7f6a59" fill="#d7e8fb" rx="10" height="64" width="168" y="154" x="528"/>
+  <text id="svg_74" class="node-type" text-anchor="middle" y="172" x="612">STREAM</text>
+  <text id="svg_75" class="node-title" text-anchor="middle" y="192" x="612">SSEClient.ts</text>
+  <text id="svg_76" class="node-sub" text-anchor="middle" y="214" x="612">EventSource client</text>
+  <rect id="svg_77" stroke-width="1.8" stroke="#7f6a59" fill="#d7e8fb" rx="10" height="64" width="182" y="154" x="746"/>
+  <text id="svg_78" class="node-type" text-anchor="middle" y="172" x="837">UI STATE</text>
+  <text id="svg_79" class="node-title" text-anchor="middle" y="192" x="837">MessageHandler.ts</text>
+  <text id="svg_80" class="node-sub" text-anchor="middle" y="214" x="837">A2UI state machine</text>
+  <rect id="svg_81" stroke-width="1.8" stroke="#7f6a59" fill="#d7e8fb" rx="10" height="64" width="182" y="154" x="978"/>
+  <text id="svg_82" class="node-type" text-anchor="middle" y="172" x="1069">UI REGISTRY</text>
+  <text id="svg_83" class="node-title" text-anchor="middle" y="192" x="1069">ComponentRegistry</text>
+  <text id="svg_84" class="node-sub" text-anchor="middle" y="214" x="1069">dynamic component map</text>
+  <rect id="svg_85" stroke-width="1.8" stroke="#7f6a59" fill="#d7e8fb" rx="10" height="64" width="218" y="154" x="1210"/>
+  <text id="svg_86" class="node-type" text-anchor="middle" y="172" x="1319">RENDER</text>
+  <text id="svg_87" class="node-title" text-anchor="middle" y="192" x="1319">ResponseBlock + Widgets</text>
+  <text id="svg_88" class="node-sub" text-anchor="middle" y="214" x="1319">ChatMessage / ToolResult / DataWidget</text>
+  <rect id="svg_89" stroke-width="1.8" stroke="#d97757" fill="#f5e4c5" rx="10" height="72" width="154" y="322" x="86"/>
+  <text id="svg_90" class="node-type" text-anchor="middle" y="340" x="163">BOOTSTRAP</text>
+  <text id="svg_91" class="node-title" text-anchor="middle" y="364" x="163">main.py</text>
+  <text id="svg_92" class="node-sub" text-anchor="middle" y="386" x="163">lifespan + init</text>
+  <rect id="svg_93" stroke-width="2" stroke="#d97757" fill="#f5e4c5" rx="10" height="76" width="186" y="320" x="286"/>
+  <rect id="svg_94" opacity="0.65" stroke-width="1.2" stroke="#d97757" fill="none" rx="7" height="64" width="174" y="326" x="292"/>
+  <text id="svg_95" class="node-type" text-anchor="middle" y="338" x="379">HTTP API</text>
+  <text id="svg_96" class="node-title" text-anchor="middle" y="364" x="379">rest_api.py</text>
+  <text id="svg_97" class="node-sub" text-anchor="middle" y="386" x="379">query / skills / models</text>
+  <rect id="svg_98" stroke-width="1.8" stroke="#8b7c6c" fill="#e4e2dd" rx="10" height="72" width="186" y="322" x="548"/>
+  <text id="svg_99" class="node-type" text-anchor="middle" y="340" x="641">STATE</text>
+  <text id="svg_100" class="node-title" text-anchor="middle" y="364" x="641">SessionManager</text>
+  <text id="svg_101" class="node-sub" text-anchor="middle" y="386" x="641">status + history cache</text>
+  <rect id="svg_102" stroke-width="1.8" stroke="#8b7c6c" fill="#e4e2dd" rx="10" height="72" width="182" y="322" x="810"/>
+  <text id="svg_103" class="node-type" text-anchor="middle" y="340" x="901">SSE</text>
+  <text id="svg_104" class="node-title" text-anchor="middle" y="364" x="901">sse_endpoint.py</text>
+  <text id="svg_105" class="node-sub" text-anchor="middle" y="386" x="901">event generator</text>
+  <rect id="svg_106" stroke-width="1.8" stroke="#8b7c6c" fill="#e4e2dd" rx="10" height="72" width="186" y="322" x="1068"/>
+  <text id="svg_107" class="node-type" text-anchor="middle" y="340" x="1161">STREAM</text>
+  <text id="svg_108" class="node-title" text-anchor="middle" y="364" x="1161">stream_adapter.py</text>
+  <text id="svg_109" class="node-sub" text-anchor="middle" y="386" x="1161">xadd / xread</text>
+  <rect id="svg_110" stroke-width="1.8" stroke="#8b7c6c" fill="#e4e2dd" rx="10" height="72" width="154" y="322" x="1330"/>
+  <text id="svg_111" class="node-type" text-anchor="middle" y="340" x="1407">TRACE</text>
+  <text id="svg_112" class="node-title" text-anchor="middle" y="364" x="1407">Monitoring</text>
+  <text id="svg_113" class="node-sub" text-anchor="middle" y="386" x="1407">langfuse + metrics</text>
+  <rect id="svg_114" stroke-width="1.8" stroke="#8b7c6c" fill="#e4e2dd" rx="10" height="66" width="124" y="182" x="1584"/>
+  <text id="svg_115" class="node-type" text-anchor="middle" y="200" x="1646">SECURITY</text>
+  <text id="svg_116" class="node-title" text-anchor="middle" y="221" x="1646">security/*</text>
+  <text id="svg_117" class="node-sub" text-anchor="middle" y="243" x="1646">guard / audit / policy</text>
+  <rect id="svg_118" stroke-width="1.8" stroke="#8b7c6c" fill="#e4e2dd" rx="10" height="66" width="124" y="272" x="1584"/>
+  <text id="svg_119" class="node-type" text-anchor="middle" y="290" x="1646">COST</text>
+  <text id="svg_120" class="node-title" text-anchor="middle" y="311" x="1646">billing/*</text>
+  <text id="svg_121" class="node-sub" text-anchor="middle" y="333" x="1646">quota / tracker</text>
+  <rect id="svg_122" stroke-width="1.8" stroke="#8b7c6c" fill="#e4e2dd" rx="10" height="66" width="124" y="362" x="1584"/>
+  <text id="svg_123" class="node-type" text-anchor="middle" y="380" x="1646">QA</text>
+  <text id="svg_124" class="node-title" text-anchor="middle" y="401" x="1646">tests/</text>
+  <text id="svg_125" class="node-sub" text-anchor="middle" y="423" x="1646">unit / API / stream</text>
+  <rect id="svg_126" stroke-width="2" stroke="#6e6258" fill="#9fd4c8" rx="10" height="76" width="182" y="524" x="80"/>
+  <rect id="svg_127" opacity="0.65" stroke-width="1.2" stroke="#6e6258" fill="none" rx="7" height="64" width="170" y="530" x="86"/>
+  <text id="svg_128" class="node-type" text-anchor="middle" y="542" x="171">MODE</text>
+  <text id="svg_129" class="node-title" text-anchor="middle" y="568" x="171">ReasoningEngine</text>
+  <text id="svg_130" class="node-sub" text-anchor="middle" y="590" x="171">ExecutionMode resolve</text>
+  <rect id="svg_131" stroke-width="2" stroke="#6e6258" fill="#9fd4c8" rx="10" height="76" width="182" y="524" x="302"/>
+  <rect id="svg_132" opacity="0.65" stroke-width="1.2" stroke="#6e6258" fill="none" rx="7" height="64" width="170" y="530" x="308"/>
+  <text id="svg_133" class="node-type" text-anchor="middle" y="542" x="393">AGENT</text>
+  <text id="svg_134" class="node-title" text-anchor="middle" y="568" x="393">AgentFactory</text>
+  <text id="svg_135" class="node-sub" text-anchor="middle" y="590" x="393">deps + publish_fn</text>
+  <rect id="svg_136" stroke-width="1.8" stroke="#6e6258" fill="#9fd4c8" rx="10" height="76" width="172" y="524" x="524"/>
+  <text id="svg_137" class="node-type" text-anchor="middle" y="542" x="610">PLAN</text>
+  <text id="svg_138" class="node-title" text-anchor="middle" y="568" x="610">planning.py</text>
+  <text id="svg_139" class="node-sub" text-anchor="middle" y="590" x="610">planner prompt / DAG</text>
+  <rect id="svg_140" stroke-width="1.8" stroke="#6e6258" fill="#9fd4c8" rx="10" height="76" width="156" y="524" x="736"/>
+  <text id="svg_141" class="node-type" text-anchor="middle" y="542" x="814">HOOKS</text>
+  <text id="svg_142" class="node-title" text-anchor="middle" y="568" x="814">hooks.py</text>
+  <text id="svg_143" class="node-sub" text-anchor="middle" y="590" x="814">audit / loop detect</text>
+  <rect id="svg_144" stroke-width="1.8" stroke="#6e6258" fill="#9fd4c8" rx="10" height="76" width="184" y="524" x="932"/>
+  <text id="svg_145" class="node-type" text-anchor="middle" y="542" x="1024">PROMPT</text>
+  <text id="svg_146" class="node-title" text-anchor="middle" y="568" x="1024">ContextBuilder</text>
+  <text id="svg_147" class="node-sub" text-anchor="middle" y="590" x="1024">templates + system prompt</text>
+  <rect id="svg_148" stroke-width="2" stroke="#d0b58a" fill="#f5e4c5" rx="10" height="76" width="212" y="524" x="1156"/>
+  <rect id="svg_149" opacity="0.65" stroke-width="1.2" stroke="#d0b58a" fill="none" rx="7" height="64" width="200" y="530" x="1162"/>
+  <text id="svg_150" class="node-type" text-anchor="middle" y="542" x="1262">CAPABILITIES</text>
+  <text id="svg_151" class="node-title" text-anchor="middle" y="568" x="1262">Base Tools Router</text>
+  <text id="svg_152" class="node-sub" text-anchor="middle" y="590" x="1262">sandbox / skill / memory / UI</text>
+  <rect id="svg_153" stroke-width="1.8" stroke="#8b7c6c" fill="#e4e2dd" rx="10" height="46" width="186" y="644" x="98"/>
+  <text id="svg_154" class="node-type" text-anchor="middle" y="662" x="191">MODEL</text>
+  <text id="svg_155" class="node-title" text-anchor="middle" y="679" x="192">llm/registry.py</text>
+  <rect stroke="#8b7c6c" id="svg_156" stroke-width="1.8" fill="#e4e2dd" rx="10" height="46" width="212.000009" y="644" x="326"/>
+  <text id="svg_157" class="node-type" text-anchor="middle" y="662" x="427">PROVIDERS</text>
+  <text id="svg_158" class="node-title" text-anchor="middle" y="680" x="430">providers/* + catalog.py</text>
+  <rect id="svg_159" stroke-width="1.8" stroke="#8b7c6c" fill="#e4e2dd" rx="10" height="46" width="172" y="644" x="572"/>
+  <text id="svg_160" class="node-type" text-anchor="middle" y="662" x="658">SUB-AGENTS</text>
+  <text id="svg_161" class="node-title" text-anchor="middle" y="680" x="659">agents/roles.py</text>
+  <rect id="svg_162" stroke-width="1.8" stroke="#8b7c6c" fill="#e4e2dd" rx="10" height="46" width="214" y="644" x="786"/>
+  <text id="svg_163" class="node-type" text-anchor="middle" y="662" x="893">MEMORY</text>
+  <text id="svg_164" class="node-title" text-anchor="middle" y="678" x="897">memory/*</text>
+  <rect id="svg_165" stroke-width="1.8" stroke="#d0b58a" fill="#f5e4c5" rx="10" height="46" width="190" y="644" x="1042"/>
+  <text id="svg_166" class="node-type" text-anchor="middle" y="662" x="1137">SKILLS</text>
+  <text id="svg_167" class="node-title" text-anchor="middle" y="678" x="1138">skills/registry.py</text>
+  <rect stroke="#d0b58a" id="svg_168" stroke-width="1.8" fill="#f5e4c5" rx="10" height="46" width="218.000002" y="644" x="1274"/>
+  <text id="svg_169" class="node-type" text-anchor="middle" y="662" x="1386">MCP</text>
+  <text id="svg_170" class="node-title" text-anchor="middle" y="679" x="1385">mcp/client_manager.py</text>
+  <rect id="svg_171" stroke-width="1.8" stroke="#d97757" fill="#f5e4c5" rx="10" height="74" width="176" y="828" x="82"/>
+  <text id="svg_172" class="node-type" text-anchor="middle" y="846" x="170">EXECUTION</text>
+  <text id="svg_173" class="node-title" text-anchor="middle" y="871" x="170">sandbox_worker.py</text>
+  <text id="svg_174" class="node-sub" text-anchor="middle" y="893" x="170">task orchestration</text>
+  <rect id="svg_175" stroke-width="1.8" stroke="#d97757" fill="#f5e4c5" rx="10" height="74" width="192" y="828" x="290"/>
+  <text id="svg_176" class="node-type" text-anchor="middle" y="846" x="386">SANDBOX</text>
+  <text id="svg_177" class="node-title" text-anchor="middle" y="871" x="386">sandbox_manager.py</text>
+  <text id="svg_178" class="node-sub" text-anchor="middle" y="893" x="386">local / E2B lifecycle</text>
+  <rect id="svg_179" stroke-width="1.8" stroke="#d97757" fill="#f5e4c5" rx="10" height="74" width="148" y="828" x="514"/>
+  <text id="svg_180" class="node-type" text-anchor="middle" y="846" x="588">A2UI IPC</text>
+  <text id="svg_181" class="node-title" text-anchor="middle" y="871" x="588">ipc.py</text>
+  <text id="svg_182" class="node-sub" text-anchor="middle" y="893" x="588">JSONL -&gt; events</text>
+  <rect id="svg_183" stroke-width="1.8" stroke="#7f6a59" fill="#d7e8fb" rx="10" height="74" width="178" y="828" x="704"/>
+  <text id="svg_184" class="node-type" text-anchor="middle" y="846" x="793">NATIVE</text>
+  <text id="svg_185" class="node-title" text-anchor="middle" y="871" x="793">web_search_worker.py</text>
+  <text id="svg_186" class="node-sub" text-anchor="middle" y="893" x="793">trusted host worker</text>
+  <rect id="svg_187" stroke-width="1.8" stroke="#d0b58a" fill="#f5e4c5" rx="10" height="74" width="178" y="828" x="924"/>
+  <text id="svg_188" class="node-type" text-anchor="middle" y="846" x="1013">SKILL DIR</text>
+  <text id="svg_189" class="node-title" text-anchor="middle" y="871" x="1013">skill/</text>
+  <text id="svg_190" class="node-sub" text-anchor="middle" y="893" x="1013">local skill packages</text>
+  <rect id="svg_191" stroke-width="1.8" stroke="#d0b58a" fill="#f5e4c5" rx="10" height="74" width="176" y="828" x="1144"/>
+  <text id="svg_192" class="node-type" text-anchor="middle" y="846" x="1232">TOOLS</text>
+  <text id="svg_193" class="node-title" text-anchor="middle" y="871" x="1232">MCP Servers</text>
+  <text id="svg_194" class="node-sub" text-anchor="middle" y="893" x="1232">SSE / Streamable</text>
+  <ellipse id="svg_195" stroke-width="2.2" stroke="#8b7c6c" fill="#e4e2dd" ry="12.25" rx="31.5" cy="828.25" cx="1425"/>
+  <rect stroke="#8b7c6c" id="svg_196" stroke-width="2.2" fill="#e4e2dd" height="73.5" width="152.999999" y="828.25" x="1351.000006"/>
+  <ellipse id="svg_197" stroke-width="2.2" stroke="#8b7c6c" fill="#e4e2dd" ry="12.25" rx="31.5" cy="901.75" cx="1425"/>
+  <ellipse id="svg_198" stroke-width="1.2" stroke-opacity="0.45" stroke="#8b7c6c" fill="none" ry="12.25" rx="31.5" cy="853.24" cx="1425"/>
+  <ellipse id="svg_199" stroke-width="1.2" stroke-opacity="0.25" stroke="#8b7c6c" fill="none" ry="12.25" rx="31.5" cy="874.8" cx="1425"/>
+  <text id="svg_200" class="node-title" text-anchor="middle" y="859" x="1425">Redis</text>
+  <text id="svg_201" class="node-sub" text-anchor="middle" y="883" x="1425">streams + state + memory</text>
+  <rect id="svg_202" stroke-width="1.8" stroke="#d97757" fill="#f5e4c5" rx="10" height="44" width="176" y="958" x="146"/>
+  <text id="svg_203" class="node-type" text-anchor="middle" y="976" x="234">RUNTIME</text>
+  <text id="svg_204" class="node-title" text-anchor="middle" y="993" x="234">Pi Agent / E2B</text>
+  <rect id="svg_205" stroke-width="1.8" stroke="#6e6258" fill="#9fd4c8" rx="10" height="44" width="214" y="958" x="470"/>
+  <text id="svg_206" class="node-type" text-anchor="middle" y="976" x="577">INFERENCE</text>
+  <text id="svg_207" class="node-title" text-anchor="middle" y="995" x="578">LLM APIs</text>
+  <rect id="svg_208" stroke-width="1.8" stroke="#8b7c6c" fill="#e4e2dd" rx="10" height="44" width="186" y="958" x="1318"/>
+  <text id="svg_209" class="node-type" text-anchor="middle" y="976" x="1411">OBS</text>
+  <text id="svg_210" class="node-title" text-anchor="middle" y="991" x="1413">Langfuse + Metrics</text>
+  <rect stroke="#8b7c6c" id="svg_211" stroke-width="1.8" fill="#e4e2dd" rx="10" height="66" width="169.000001" y="780" x="1584"/>
+  <text id="svg_212" class="node-type" text-anchor="middle" y="797" x="1661">DELIVERY</text>
+  <text id="svg_213" class="node-title" text-anchor="middle" y="820" x="1663">Docker / CI</text>
+  <text id="svg_214" class="node-sub" text-anchor="middle" y="838" x="1674">Dockerfile / Compose / Actions</text>
+  <rect stroke="#8b7c6c" id="svg_215" stroke-width="1.8" fill="#e4e2dd" rx="10" height="66" width="168.000002" y="870" x="1584"/>
+  <text id="svg_216" class="node-type" text-anchor="middle" y="887" x="1655">I18N</text>
+  <text id="svg_217" class="node-title" text-anchor="middle" y="908" x="1662">i18n / locales</text>
+  <text id="svg_218" class="node-sub" text-anchor="middle" y="926" x="1661">UI + prompt language</text>
+  <rect stroke="#8b7c6c" id="svg_219" stroke-width="1.8" fill="#e4e2dd" rx="10" height="66" width="168.000002" y="960" x="1584"/>
+  <text id="svg_220" class="node-type" text-anchor="middle" y="978" x="1668">DOCS</text>
+  <text id="svg_221" class="node-title" text-anchor="middle" y="1000" x="1667">README / Docs</text>
+  <text id="svg_222" class="node-sub" text-anchor="middle" y="1020" x="1666">architecture + deploy guides</text>
+  <rect id="svg_223" opacity="0.96" fill="#f8f6f3" rx="6" height="20" width="161" y="239" x="319.5"/>
+  <text id="svg_224" class="arrow-label" text-anchor="middle" y="253" x="400">POST /api/agent/query</text>
+  <rect id="svg_225" opacity="0.96" fill="#f8f6f3" rx="6" height="20" width="84" y="104" x="843"/>
+  <text id="svg_226" class="arrow-label" text-anchor="middle" y="118" x="885">SSE stream</text>
+  <rect id="svg_227" opacity="0.96" fill="#f8f6f3" rx="6" height="20" width="98" y="424" x="223"/>
+  <text id="svg_228" class="arrow-label" text-anchor="middle" y="438" x="272">decide(mode)</text>
+  <rect id="svg_229" opacity="0.96" fill="#f8f6f3" rx="6" height="20" width="119" y="950" x="336.5"/>
+  <text id="svg_230" class="arrow-label" text-anchor="middle" y="964" x="396">sandbox runtime</text>
+  <rect id="svg_231" opacity="0.88" fill="#fffaf3" rx="10" height="134" width="310" y="1048" x="1438"/>
+  <line id="svg_232" marker-end="url(#arrowC)" stroke-width="2" stroke="#8c6f5a" y2="1062" x2="1478" y1="1062" x1="1448"/>
+  <text id="svg_233" class="legend" y="1066" x="1488">Primary request / retrieval path</text>
+  <line id="svg_234" marker-end="url(#arrowA)" stroke-width="2" stroke="#d97757" y2="1084" x2="1478" y1="1084" x1="1448"/>
+  <text id="svg_235" class="legend" y="1088" x="1488">Planning and orchestration control</text>
+  <line id="svg_236" marker-end="url(#arrowB)" stroke-width="2" stroke="#7b8b5c" y2="1106" x2="1478" y1="1106" x1="1448"/>
+  <text id="svg_237" class="legend" y="1110" x="1488">Redis or memory writeback</text>
+  <line id="svg_238" marker-end="url(#arrowF)" stroke-width="2" stroke="#9a6fb0" y2="1128" x2="1478" y1="1128" x1="1448"/>
+  <text id="svg_239" class="legend" y="1132" x="1488">Streaming events to UI</text>
+  <line id="svg_240" marker-end="url(#arrowA)" stroke-width="2" stroke="#d97757" y2="1150" x2="1478" y1="1150" x1="1448"/>
+  <text id="svg_241" class="legend" y="1154" x="1488">Telemetry / observability</text>
+ </g>
+</svg>
