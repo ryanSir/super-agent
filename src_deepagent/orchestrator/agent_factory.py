@@ -26,6 +26,35 @@ from src_deepagent.orchestrator.reasoning_engine import ExecutionPlan
 logger = get_logger(__name__)
 
 
+def _schedule_mcp_tools_debug_log(mcp_toolsets: list[Any]) -> None:
+    """Log MCP tool names from the sync agent factory without blocking creation."""
+    if not mcp_toolsets:
+        logger.info("MCP 工具列表 | toolsets=0 tools=[]")
+        return
+
+    async def _log() -> None:
+        for index, toolset in enumerate(mcp_toolsets):
+            label = getattr(toolset, "label", type(toolset).__name__)
+            try:
+                tools = await toolset.get_tools(None)
+                logger.info(
+                    f"MCP 工具列表 | "
+                    f"index={index} label={label} count={len(tools)} names={list(tools.keys())}"
+                )
+            except Exception as e:
+                logger.warning(
+                    f"MCP 工具列表获取失败 | "
+                    f"index={index} label={label} error={e}"
+                )
+
+    try:
+        import asyncio
+
+        asyncio.create_task(_log())
+    except RuntimeError:
+        logger.warning("MCP 工具列表获取跳过 | reason=no_running_event_loop")
+
+
 def create_orchestrator_agent(
     plan: ExecutionPlan,
     sub_agent_configs: list[dict[str, Any]],
@@ -90,6 +119,7 @@ def create_orchestrator_agent(
 
     # MCP toolsets（pydantic-ai MCPServer 实例）
     mcp_toolsets = plan.resources.mcp_toolsets
+    _schedule_mcp_tools_debug_log(mcp_toolsets)
 
     # 创建主 Agent
     agent = create_deep_agent(
