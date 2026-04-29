@@ -53,6 +53,12 @@
   /* Code highlight */
   --code-bg: #0d1117;
   --code-text: #e6edf3;
+
+  /* Chat layout */
+  --chat-content-width: 680px;
+  --chat-avatar-size: 36px;
+  --chat-message-gap: 10px;
+  --chat-assistant-offset: calc(var(--chat-avatar-size) + var(--chat-message-gap));
 }
 
 /* ============================================================
@@ -321,6 +327,9 @@ body {
 
 .message-row {
   display: flex;
+  width: 100%;
+  max-width: calc(var(--chat-content-width) + var(--chat-avatar-size) + var(--chat-message-gap));
+  margin: 0 auto;
   animation: msgIn 0.2s ease forwards;
 }
 
@@ -337,8 +346,8 @@ body {
    ============================================================ */
 
 .message-avatar {
-  width: 36px;
-  height: 36px;
+  width: var(--chat-avatar-size);
+  height: var(--chat-avatar-size);
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
@@ -352,8 +361,8 @@ body {
 .chat-message-user {
   display: flex;
   align-items: flex-end;
-  gap: 10px;
-  max-width: 72%;
+  gap: var(--chat-message-gap);
+  max-width: var(--chat-content-width);
 }
 
 .user-bubble-wrap {
@@ -438,9 +447,9 @@ body {
 .assistant-row {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  width: 85%;
-  max-width: 85%;
+  gap: var(--chat-message-gap);
+  width: 100%;
+  max-width: 100%;
 }
 
 .assistant-row .response-block {
@@ -495,9 +504,10 @@ body {
   border-top: 1px solid var(--border);
   background: var(--bg-secondary);
   flex-shrink: 0;
-  max-width: 680px;
+  width: calc(var(--chat-content-width) + 48px);
+  max-width: 100%;
   margin: 0 auto;
-  width: 100%;
+  transform: translateX(calc(var(--chat-assistant-offset) / 2));
   box-sizing: border-box;
 }
 
@@ -505,6 +515,8 @@ body {
   display: flex;
   gap: 8px;
   align-items: flex-end;
+  max-width: var(--chat-content-width);
+  margin: 0 auto;
 }
 
 .input-wrapper {
@@ -588,6 +600,9 @@ body {
   padding: 0 2px;
   flex-wrap: nowrap;
   gap: 8px;
+  max-width: var(--chat-content-width);
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .footer-left {
@@ -597,6 +612,15 @@ body {
   align-items: center;
   gap: 12px;
   flex-shrink: 0;
+}
+
+@media (max-width: 760px) {
+  .app-footer,
+  .input-form,
+  .footer-bar {
+    transform: none;
+    width: 100%;
+  }
 }
 
 .mode-selector {
