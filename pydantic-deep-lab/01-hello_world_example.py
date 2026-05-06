@@ -7,7 +7,7 @@ from model_factory import create_model
 
 async def main():
     agent = create_deep_agent(
-        model=create_model("gateway-openai-gpt-5.4"),
+        model=create_model("gateway-claude-sonnet-4.6"),
         instructions="You are a helpful coding assistant. Be concise.",
         include_todo=False,
         include_filesystem=False,
