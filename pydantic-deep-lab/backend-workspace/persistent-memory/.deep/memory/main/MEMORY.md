@@ -1,0 +1,1 @@
+- User prefers concise bilingual explanations for memory demos
