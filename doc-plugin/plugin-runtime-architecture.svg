@@ -1,0 +1,159 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" width="1200" height="760">
+  <style>
+    text {
+      font-family: 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', 'Microsoft JhengHei', 'SimHei', sans-serif;
+      fill: #111827;
+    }
+    .title { font-size: 24px; font-weight: 700; }
+    .section-title { font-size: 15px; font-weight: 700; fill: #374151; }
+    .node-title { font-size: 15px; font-weight: 700; }
+    .node-sub { font-size: 12px; fill: #6b7280; }
+    .label { font-size: 12px; fill: #4b5563; }
+    .small { font-size: 11px; fill: #6b7280; }
+  </style>
+
+  <defs>
+    <marker id="arrow-blue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#2563eb"/>
+    </marker>
+    <marker id="arrow-green" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#16a34a"/>
+    </marker>
+    <marker id="arrow-orange" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#ea580c"/>
+    </marker>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#111827" flood-opacity="0.12"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="760" fill="#ffffff"/>
+  <text x="60" y="48" class="title">Plugin Runtime Architecture</text>
+  <text x="60" y="72" class="label">管理面负责发布、安装与生命周期；调用面负责 Agent 运行时发现、授权和调用插件能力。</text>
+
+  <!-- Control plane -->
+  <rect x="48" y="100" width="1104" height="190" rx="14" fill="#f8fafc" stroke="#d1d5db" stroke-width="1.5"/>
+  <text x="72" y="130" class="section-title">Control Plane：插件开发、发布、安装与生命周期管理</text>
+
+  <g filter="url(#shadow)">
+    <rect x="78" y="162" width="190" height="76" rx="8" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.5"/>
+  </g>
+  <text x="173" y="192" text-anchor="middle" class="node-title">Plugin SDK</text>
+  <text x="173" y="214" text-anchor="middle" class="node-sub">CLI / DevKit</text>
+
+  <g filter="url(#shadow)">
+    <rect x="340" y="162" width="210" height="76" rx="8" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.5"/>
+  </g>
+  <text x="445" y="192" text-anchor="middle" class="node-title">Plugin Registry</text>
+  <text x="445" y="214" text-anchor="middle" class="node-sub">内部仓库 / 市场 / 版本</text>
+
+  <g filter="url(#shadow)">
+    <rect x="622" y="162" width="210" height="76" rx="8" fill="#fff7ed" stroke="#fed7aa" stroke-width="1.5"/>
+  </g>
+  <text x="727" y="192" text-anchor="middle" class="node-title">Plugin Manager</text>
+  <text x="727" y="214" text-anchor="middle" class="node-sub">安装 / 启用 / 配置 / 升级</text>
+
+  <g filter="url(#shadow)">
+    <rect x="904" y="162" width="210" height="76" rx="8" fill="#faf5ff" stroke="#e9d5ff" stroke-width="1.5"/>
+  </g>
+  <text x="1009" y="192" text-anchor="middle" class="node-title">Plugin Runtime Host</text>
+  <text x="1009" y="214" text-anchor="middle" class="node-sub">daemon / sidecar / container</text>
+
+  <path d="M 268 200 L 340 200" stroke="#2563eb" stroke-width="2" fill="none" marker-end="url(#arrow-blue)"/>
+  <rect x="286" y="181" width="72" height="18" rx="4" fill="#ffffff" opacity="0.96"/>
+  <text x="322" y="194" text-anchor="middle" class="small">publish</text>
+
+  <path d="M 550 200 L 622 200" stroke="#2563eb" stroke-width="2" fill="none" marker-end="url(#arrow-blue)"/>
+  <rect x="566" y="181" width="78" height="18" rx="4" fill="#ffffff" opacity="0.96"/>
+  <text x="605" y="194" text-anchor="middle" class="small">install</text>
+
+  <path d="M 832 200 L 904 200" stroke="#2563eb" stroke-width="2" fill="none" marker-end="url(#arrow-blue)"/>
+  <rect x="842" y="181" width="92" height="18" rx="4" fill="#ffffff" opacity="0.96"/>
+  <text x="888" y="194" text-anchor="middle" class="small">configure</text>
+
+  <!-- Data plane -->
+  <rect x="48" y="330" width="1104" height="350" rx="14" fill="#ffffff" stroke="#d1d5db" stroke-width="1.5"/>
+  <text x="72" y="360" class="section-title">Data Plane：Agent 运行时发现、授权与调用已启用的插件能力</text>
+
+  <g filter="url(#shadow)">
+    <rect x="78" y="398" width="288" height="210" rx="10" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+  </g>
+  <text x="222" y="428" text-anchor="middle" class="node-title">Agent Runtime</text>
+  <text x="112" y="464" class="label">Capability Resolver</text>
+  <text x="112" y="494" class="label">Policy Engine</text>
+  <text x="112" y="524" class="label">Credential Broker</text>
+  <text x="112" y="554" class="label">Tool Invocation Gateway</text>
+  <text x="112" y="584" class="label">Observability / Audit</text>
+
+  <circle cx="96" cy="459" r="4" fill="#2563eb"/>
+  <circle cx="96" cy="489" r="4" fill="#2563eb"/>
+  <circle cx="96" cy="519" r="4" fill="#2563eb"/>
+  <circle cx="96" cy="549" r="4" fill="#2563eb"/>
+  <circle cx="96" cy="579" r="4" fill="#2563eb"/>
+
+  <g filter="url(#shadow)">
+    <rect x="474" y="410" width="240" height="86" rx="8" fill="#faf5ff" stroke="#e9d5ff" stroke-width="1.5"/>
+  </g>
+  <text x="594" y="444" text-anchor="middle" class="node-title">Plugin Runtime Host</text>
+  <text x="594" y="466" text-anchor="middle" class="node-sub">执行已启用插件能力</text>
+
+  <g filter="url(#shadow)">
+    <rect x="454" y="560" width="190" height="70" rx="8" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.5"/>
+  </g>
+  <text x="549" y="589" text-anchor="middle" class="node-title">MCP Runtime</text>
+  <text x="549" y="611" text-anchor="middle" class="node-sub">Streamable HTTP / stdio adapter</text>
+
+  <g filter="url(#shadow)">
+    <rect x="760" y="560" width="190" height="70" rx="8" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.5"/>
+  </g>
+  <text x="855" y="589" text-anchor="middle" class="node-title">OpenAPI Runtime</text>
+  <text x="855" y="611" text-anchor="middle" class="node-sub">API schema / auth injection</text>
+
+  <g filter="url(#shadow)">
+    <rect x="472" y="662" width="154" height="46" rx="8" fill="#ffffff" stroke="#d1d5db" stroke-width="1.5"/>
+  </g>
+  <text x="549" y="690" text-anchor="middle" class="label">Tool Execution</text>
+
+  <g filter="url(#shadow)">
+    <rect x="778" y="662" width="154" height="46" rx="8" fill="#ffffff" stroke="#d1d5db" stroke-width="1.5"/>
+  </g>
+  <text x="855" y="690" text-anchor="middle" class="label">Data Connector</text>
+
+  <path d="M 366 512 L 474 453" stroke="#16a34a" stroke-width="2" fill="none" marker-end="url(#arrow-green)"/>
+  <rect x="385" y="465" width="84" height="18" rx="4" fill="#ffffff" opacity="0.96"/>
+  <text x="427" y="478" text-anchor="middle" class="small">invoke</text>
+
+  <path d="M 594 496 L 594 528 L 549 528 L 549 560" stroke="#16a34a" stroke-width="2" fill="none" marker-end="url(#arrow-green)"/>
+  <path d="M 594 496 L 594 528 L 855 528 L 855 560" stroke="#16a34a" stroke-width="2" fill="none" marker-end="url(#arrow-green)"/>
+  <path d="M 549 630 L 549 662" stroke="#16a34a" stroke-width="2" fill="none" marker-end="url(#arrow-green)"/>
+  <path d="M 855 630 L 855 662" stroke="#16a34a" stroke-width="2" fill="none" marker-end="url(#arrow-green)"/>
+
+  <!-- Cross-plane relationship -->
+  <path d="M 1009 238 L 1009 304 L 714 304 L 714 418" stroke="#ea580c" stroke-width="2" stroke-dasharray="6 4" fill="none" marker-end="url(#arrow-orange)"/>
+  <rect x="820" y="286" width="132" height="20" rx="4" fill="#ffffff" opacity="0.96"/>
+  <text x="886" y="300" text-anchor="middle" class="small">runtime lifecycle</text>
+
+  <!-- Capability index note -->
+  <rect x="778" y="398" width="310" height="98" rx="8" fill="#fffbeb" stroke="#fde68a" stroke-width="1.5"/>
+  <text x="798" y="426" class="node-title">Capability Index</text>
+  <text x="798" y="452" class="node-sub">Plugin Manager 写入安装状态、启用状态、</text>
+  <text x="798" y="474" class="node-sub">能力定义和 workspace / agent 绑定关系。</text>
+
+  <path d="M 832 222 L 858 222 L 858 398" stroke="#ea580c" stroke-width="2" stroke-dasharray="6 4" fill="none" marker-end="url(#arrow-orange)"/>
+  <rect x="836" y="306" width="86" height="18" rx="4" fill="#ffffff" opacity="0.96"/>
+  <text x="879" y="319" text-anchor="middle" class="small">index</text>
+
+  <path d="M 778 447 L 366 447" stroke="#ea580c" stroke-width="2" stroke-dasharray="6 4" fill="none" marker-end="url(#arrow-orange)"/>
+  <rect x="540" y="428" width="112" height="18" rx="4" fill="#ffffff" opacity="0.96"/>
+  <text x="596" y="441" text-anchor="middle" class="small">discover</text>
+
+  <!-- Legend -->
+  <g transform="translate(72, 704)">
+    <line x1="0" y1="8" x2="34" y2="8" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow-blue)"/>
+    <text x="44" y="12" class="small">发布 / 安装管理流</text>
+    <line x1="170" y1="8" x2="204" y2="8" stroke="#16a34a" stroke-width="2" marker-end="url(#arrow-green)"/>
+    <text x="214" y="12" class="small">Agent 调用执行流</text>
+    <line x1="360" y1="8" x2="394" y2="8" stroke="#ea580c" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arrow-orange)"/>
+    <text x="404" y="12" class="small">控制面状态 / 能力索引</text>
+  </g>
+</svg>

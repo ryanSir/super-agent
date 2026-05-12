@@ -1,0 +1,177 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/28.2.5 Chrome/138.0.7204.251 Electron/37.6.1 Safari/537.36" version="28.2.5">
+  <diagram name="Plugin E2E Flow" id="0">
+    <mxGraphModel dx="1831" dy="893" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1500" pageHeight="1060" background="none" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="Plugin 端到端流程泳道图（职责边界 + 业务 Agent 交互 + POC 映射）" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=22;fontStyle=1;fontColor=#111827;" parent="1" vertex="1">
+          <mxGeometry x="120" y="20" width="1260" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="lane_dev" value="开发侧：Plugin Developer / SDK / CLI（本地工具，不是线上服务）" style="swimlane;html=1;startSize=34;horizontal=1;whiteSpace=wrap;fillColor=#eff6ff;strokeColor=#6c8ebf;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="60" y="80" width="1380" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_note" value="说明：泳道表示职责边界，不等于必须独立部署。业务 Agent 系统通常已由各业务团队建设，后续对接 Plugin 平台。Plugin 平台第一版建议部署：Plugin 核心服务、Plugin 管理平台、Plugin Runtime Host。外部 MCP/API/数据源通常复用现有系统，观测可接入现有 Langfuse。" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#111827;fontSize=12;" parent="lane_dev" vertex="1">
+          <mxGeometry x="716" y="38" width="631" height="74" as="geometry" />
+        </mxCell>
+        <mxCell id="lane_registry" value="平台管理面：Plugin Registry / Plugin Manager（可同服务或拆服务）" style="swimlane;html=1;startSize=34;horizontal=1;whiteSpace=wrap;fillColor=#fff7ed;strokeColor=#d79b00;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="60" y="210" width="1380" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="lane_agent" value="业务 Agent 系统：现有业务应用 / Agent Runtime（调用插件能力的一方）" style="swimlane;html=1;startSize=34;horizontal=1;whiteSpace=wrap;fillColor=#f0fdf4;strokeColor=#82b366;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="60" y="350" width="1380" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="lane_platform" value="Plugin 核心服务：Capability / Policy / Credential / Gateway" style="swimlane;html=1;startSize=34;horizontal=1;whiteSpace=wrap;fillColor=#faf5ff;strokeColor=#9673a6;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="60" y="490" width="1380" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="lane_runtime" value="插件运行时服务：Plugin Runtime Host / daemon / sidecar / remote runtime" style="swimlane;html=1;startSize=34;horizontal=1;whiteSpace=wrap;fillColor=#f5f5f5;strokeColor=#666666;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="60" y="670" width="1380" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="lane_external" value="外部依赖：SaaS / MCP Server / API / 数据源 / Observability 后端" style="swimlane;html=1;startSize=34;horizontal=1;whiteSpace=wrap;fillColor=#fef2f2;strokeColor=#b85450;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="60" y="810" width="1380" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="observability" value="审计与观测&#xa;audit_log.jsonl&#xa;runtime_events.jsonl" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontColor=#111827;" parent="lane_external" vertex="1">
+          <mxGeometry x="1130" y="45" width="190" height="66" as="geometry" />
+        </mxCell>
+        <mxCell id="dev_manifest" value="1. 编写插件&#xa;plugin.yaml / 子配置&#xa;POC: slack-demo" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#111827;" parent="1" vertex="1">
+          <mxGeometry x="100" y="118" width="170" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="dev_validate" value="2. 校验 / 打包&#xa;validate / package&#xa;validator.py / packager.py" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#111827;" parent="1" vertex="1">
+          <mxGeometry x="320" y="118" width="180" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="dev_publish" value="3. 发布插件&#xa;publish&#xa;publisher.py" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#111827;" parent="1" vertex="1">
+          <mxGeometry x="545" y="118" width="170" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="registry_store" value="4. Registry 存储&#xa;package.zip / metadata&#xa;local registry" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontColor=#111827;" parent="1" vertex="1">
+          <mxGeometry x="540" y="248" width="180" height="68" as="geometry" />
+        </mxCell>
+        <mxCell id="manager_install" value="5. 安装插件&#xa;install&#xa;manager.install_plugin" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontColor=#111827;" parent="1" vertex="1">
+          <mxGeometry x="790" y="248" width="180" height="68" as="geometry" />
+        </mxCell>
+        <mxCell id="manager_enable" value="6. 启用 / 绑定&#xa;workspace / agent&#xa;Capability Index" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontColor=#111827;" parent="1" vertex="1">
+          <mxGeometry x="1030" y="248" width="190" height="68" as="geometry" />
+        </mxCell>
+        <mxCell id="agent_task" value="7. 业务 Agent 收到任务&#xa;用户问题 / 业务流程触发" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#111827;" parent="1" vertex="1">
+          <mxGeometry x="100" y="390" width="190" height="66" as="geometry" />
+        </mxCell>
+        <mxCell id="agent_discover" value="8. 发现可用能力&#xa;list-capabilities / list-skills&#xa;Capability Resolver" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#111827;" parent="1" vertex="1">
+          <mxGeometry x="350" y="390" width="210" height="66" as="geometry" />
+        </mxCell>
+        <mxCell id="agent_select" value="9. 选择能力&#xa;tool / skill / data_source&#xa;openapi / mcp" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#111827;" parent="1" vertex="1">
+          <mxGeometry x="620" y="390" width="190" height="66" as="geometry" />
+        </mxCell>
+        <mxCell id="agent_answer" value="16. Agent 生成回答&#xa;结构化结果 + skill context&#xa;返回用户 / 触发动作" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#111827;" parent="1" vertex="1">
+          <mxGeometry x="1180" y="390" width="210" height="66" as="geometry" />
+        </mxCell>
+        <mxCell id="platform_policy" value="10. 权限检查&#xa;Policy Engine&#xa;policy.py" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontColor=#111827;" parent="1" vertex="1">
+          <mxGeometry x="630" y="530" width="170" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="platform_credential" value="11. 凭据校验&#xa;Credential Broker&#xa;credentials.py" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontColor=#111827;" parent="1" vertex="1">
+          <mxGeometry x="846" y="530" width="180" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="platform_gateway" value="12. 统一调用网关&#xa;invoke capability&#xa;gateway.py" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontColor=#111827;" parent="1" vertex="1">
+          <mxGeometry x="1084" y="530" width="180" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="platform_skill" value="Skill 上下文装配&#xa;render-skill-context&#xa;skill_runtime.py" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontColor=#111827;dashed=1;" parent="1" vertex="1">
+          <mxGeometry x="350" y="580" width="210" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="runtime_dispatch" value="13. Runtime 分发&#xa;Runtime Host / adapter&#xa;runtime_host.py" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#111827;" parent="1" vertex="1">
+          <mxGeometry x="1080" y="710" width="190" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="runtime_types" value="14. 执行能力&#xa;OpenAPI / MCP / Data Source&#xa;Tool mock / Skill load" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#111827;" parent="1" vertex="1">
+          <mxGeometry x="790" y="710" width="220" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="external_systems" value="15. 外部系统 / 数据源&#xa;Streamable MCP / API&#xa;local_json / SaaS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontColor=#111827;" parent="1" vertex="1">
+          <mxGeometry x="790" y="850" width="220" height="66" as="geometry" />
+        </mxCell>
+        <mxCell id="legend" value="蓝色: 插件开发发布 / 橙色: 安装启用 / 绿色: 业务 Agent / 紫色: 平台治理与调用 / 灰色: Runtime / 红色: 外部与观测" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d1d5db;fontColor=#6b7280;fontSize=12;" parent="1" vertex="1">
+          <mxGeometry x="100" y="980" width="1280" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeColor=#2563eb;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" parent="1" source="dev_manifest" target="dev_validate" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeColor=#2563eb;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" parent="1" source="dev_validate" target="dev_publish" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" value="publish" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeColor=#2563eb;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" parent="1" source="dev_publish" target="registry_store" edge="1">
+          <mxGeometry x="-0.3939" y="7" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e4" value="install" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeColor=#d79b00;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" parent="1" source="registry_store" target="manager_install" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" value="enable" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeColor=#d79b00;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" parent="1" source="manager_install" target="manager_enable" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" value="可发现能力" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeColor=#16a34a;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" parent="1" source="manager_enable" target="agent_discover" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1125" y="336" />
+              <mxPoint x="455" y="336" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e7" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeColor=#16a34a;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" parent="1" source="agent_task" target="agent_discover" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeColor=#16a34a;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" parent="1" source="agent_discover" target="agent_select" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" value="需要调用" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeColor=#9333ea;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" parent="1" source="agent_select" target="platform_policy" edge="1">
+          <mxGeometry x="-0.3243" relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="715" y="481" />
+              <mxPoint x="715" y="481" />
+            </Array>
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e10" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeColor=#9333ea;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" parent="1" source="platform_policy" target="platform_credential" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeColor=#9333ea;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" parent="1" source="platform_credential" target="platform_gateway" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e12" value="dispatch" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeColor=#9333ea;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" parent="1" source="platform_gateway" target="runtime_dispatch" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeColor=#666666;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" parent="1" source="runtime_dispatch" target="runtime_types" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14" value="API/MCP/Data" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeColor=#dc2626;entryX=0.5;entryY=0;" parent="1" target="external_systems" edge="1">
+          <mxGeometry x="-0.5526" relative="1" as="geometry">
+            <mxPoint x="900" y="774" as="sourcePoint" />
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e15" value="result" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeColor=#16a34a;exitX=1;exitY=0.5;entryX=0.5;entryY=1;" parent="1" source="runtime_dispatch" target="agent_answer" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1360" y="742" />
+              <mxPoint x="1360" y="470" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e17" value="skill context" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;dashed=1;strokeColor=#9333ea;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" parent="1" source="agent_discover" target="platform_skill" edge="1">
+          <mxGeometry x="0.3226" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e18" value="注入提示词" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;dashed=1;strokeColor=#16a34a;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" parent="1" source="platform_skill" target="agent_answer" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1068" y="612" />
+              <mxPoint x="1068" y="423" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e16" value="audit / events" style="rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;dashed=1;strokeColor=#dc2626;exitX=1;exitY=0.5;entryX=0.5;entryY=0;entryDx=0;entryDy=0;exitDx=0;exitDy=0;edgeStyle=orthogonalEdgeStyle;" parent="1" source="platform_gateway" target="observability" edge="1">
+          <mxGeometry x="-0.3185" relative="1" as="geometry">
+            <mxPoint x="1223" y="601" as="sourcePoint" />
+            <mxPoint x="1328" y="859" as="targetPoint" />
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

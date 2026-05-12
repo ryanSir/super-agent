@@ -1,0 +1,48 @@
+schema_version: 0.1.0
+id: company.slack-demo
+name: Slack Demo
+version: 1.0.0
+description: Demo plugin for plugin-poc phase one.
+author: super-agent
+
+capabilities:
+  tools:
+    - path: tools/slack-tools.yaml
+  skills:
+    - path: skills/summarize-channel/SKILL.md
+  openapi:
+    - name: slack-demo-api
+      spec: openapi/slack.yaml
+  data_sources:
+    - path: data_sources/slack-messages.yaml
+  mcp:
+    - name: eureka-claw-mcp
+      transport: streamable_http
+      url: https://stage-ai-fabric.zhihuiya.com/logic-mcp/eureka_claw?APP_ID=Patsnap
+    - name: local-stdio-demo
+      transport: stdio
+      command: python -m plugin_poc.demo_stdio_mcp
+
+auth:
+  type: oauth2
+  credential_schema: credentials/oauth.yaml
+
+permissions:
+  read:
+    - slack.channels
+    - slack.messages
+  write:
+    - slack.messages
+  sensitive_actions:
+    - send_message
+
+runtime:
+  mode: remote
+
+policy:
+  requires_user_consent: true
+  audit_level: full
+
+observability:
+  traces: true
+  logs: true

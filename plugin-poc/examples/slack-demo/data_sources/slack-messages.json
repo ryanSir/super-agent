@@ -1,0 +1,20 @@
+[
+  {
+    "channel_id": "C001",
+    "user": "alice",
+    "text": "Discussed plugin registry rollout and package validation.",
+    "created_at": "2026-05-12T09:00:00+08:00"
+  },
+  {
+    "channel_id": "C001",
+    "user": "bob",
+    "text": "MCP streamable endpoint smoke test passed with the Eureka service.",
+    "created_at": "2026-05-12T09:30:00+08:00"
+  },
+  {
+    "channel_id": "C002",
+    "user": "carol",
+    "text": "Skill runtime should expose prompt context to the Agent layer.",
+    "created_at": "2026-05-12T10:00:00+08:00"
+  }
+]

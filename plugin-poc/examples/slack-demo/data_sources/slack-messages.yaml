@@ -1,0 +1,9 @@
+id: slack_messages
+type: local_json
+description: Demo Slack message source.
+path: data_sources/slack-messages.json
+fields:
+  - channel_id
+  - user
+  - text
+  - created_at

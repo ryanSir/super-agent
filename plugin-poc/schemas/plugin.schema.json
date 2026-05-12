@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/plugin.schema.json",
+  "title": "Plugin Manifest",
+  "type": "object",
+  "required": ["schema_version", "id", "name", "version", "capabilities"],
+  "properties": {
+    "schema_version": {"type": "string"},
+    "id": {"type": "string"},
+    "name": {"type": "string"},
+    "version": {"type": "string"},
+    "description": {"type": "string"},
+    "author": {"type": "string"},
+    "capabilities": {"type": "object"},
+    "auth": {"type": "object"},
+    "permissions": {"type": "object"},
+    "runtime": {"type": "object"},
+    "policy": {"type": "object"},
+    "observability": {"type": "object"}
+  }
+}

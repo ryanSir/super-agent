@@ -1,0 +1,13 @@
+openapi: 3.1.0
+info:
+  title: Slack Demo API
+  version: 1.0.0
+paths:
+  /messages:
+    get:
+      operationId: listMessages
+      summary: List demo messages
+      responses:
+        "200":
+          description: OK
+

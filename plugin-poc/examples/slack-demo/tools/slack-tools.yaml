@@ -1,0 +1,14 @@
+tools:
+  - name: send_message
+    description: Send a message to a Slack channel.
+    input_schema:
+      type: object
+      properties:
+        channel_id:
+          type: string
+        text:
+          type: string
+      required:
+        - channel_id
+        - text
+
