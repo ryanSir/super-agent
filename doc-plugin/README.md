@@ -15,6 +15,7 @@
 | [design/05-mvp-roadmap.md](./design/05-mvp-roadmap.md) | 第一版范围、二期路线图和本周产出 |
 | [design/06-open-source-reference-and-reuse.md](./design/06-open-source-reference-and-reuse.md) | 开源项目参考、复用策略和源码调研计划 |
 | [design/07-development-plan-and-estimation.md](./design/07-development-plan-and-estimation.md) | 0-1 开发计划、端到端流程、角色配置和粗估 |
+| [design/08-claude-code-plugin-analysis.md](./design/08-claude-code-plugin-analysis.md) | Claude Code 的 skills、MCP、commands、hooks、subagents 和插件机制分析 |
 | [03-plugin-end-to-end-flow.md](./03-plugin-end-to-end-flow.md) | Plugin 端到端流程泳道图、业务 Agent 交互和 POC 映射 |
 | [04-poc-acceptance-and-roadmap.md](./04-poc-acceptance-and-roadmap.md) | Plugin POC 验收说明、部署边界和生产化 Roadmap |
 | [05-code-structure-and-deployment-mapping.md](./05-code-structure-and-deployment-mapping.md) | Plugin POC 代码分层、泳道图映射和未来服务边界 |

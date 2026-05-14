@@ -36,6 +36,7 @@
 | openai/codex | Codex CLI / 本地 agent 的开源实现，包含 plugin marketplace、安装、启用、配置加载等线索 | marketplace 解析、本地 cache、enable/disable 状态、插件加载流程 | 源码级调研，作为实现参考，不直接整体复用 |
 | openai/plugins | 官方 Codex plugin 示例集合 | plugin package layout、真实 manifest、skills/MCP/app/hooks/assets 示例 | 示例参考，可抽取最佳实践 |
 | openai/codex-plugin-cc | 官方跨工具插件示例，把 Codex 接入 Claude Code | 真实 plugin 产品体验、命令组织、安装调用体验 | 产品体验和结构参考 |
+| Claude Code | skills、MCP、slash commands、hooks、subagents、LSP、monitors、settings、plugin marketplace 的组合扩展模型 | 能力组织、配置分层、权限体验、hooks/subagents/monitors 形态 | 强产品形态参考，需要服务化改造 |
 | Open WebUI | MCP、OpenAPI、Tools、Pipelines 多扩展形态 | 扩展分层、协议适配、产品体验 | 设计参考为主 |
 | mcpo | MCP-to-OpenAPI adapter | PoC、adapter 思路、局部复用或 fork | 优先源码调研和 PoC |
 | n8n | connector、credential、节点市场、API 集成体验 | credential schema、连接测试、连接器 UX | 设计参考为主 |
@@ -57,6 +58,7 @@
 - OpenAI Codex Plugins
 - openai/plugins
 - openai/codex-plugin-cc
+- Claude Code
 - n8n
 - Open Plugins / ccpkg
 - Flowise
@@ -185,6 +187,54 @@ Codex 的设计要点：
 - Registry 增加 marketplace catalog 概念，支持 curated list。
 - package layout 保留 `skills/`、`assets/`、`mcp/`、`hooks/` 等目录的标准位置。
 - 增加 install policy、auth policy、category 等 marketplace 字段。
+
+## Claude Code 对我们的校验
+
+Claude Code 的扩展体系进一步证明：Agent 插件体系不应只围绕 MCP 或 API connector 设计，而应支持多能力组合。
+
+相关官方资料：
+
+| 资料 | 对我们的价值 |
+| --- | --- |
+| Claude Code overview | 理解 Claude Code 作为本地 agentic coding tool 的运行边界 |
+| Claude Code settings | 参考项目级、用户级、托管级配置分层 |
+| Claude Code MCP | 参考 MCP server 配置和工具接入体验 |
+| Claude Code slash commands | 参考显式命令入口和可复用工作流入口 |
+| Claude Code hooks | 参考工具调用前后、提示词提交、会话结束等生命周期事件 |
+| Claude Code subagents | 参考专用 Agent 模板、工具权限和独立上下文模型 |
+| Claude Code LSP / monitors | 参考代码智能和后台事件监听能力 |
+| Claude Code plugin marketplace | 参考插件发现、安装和分发体验 |
+
+与我们当前设计的对应关系：
+
+| Claude Code | 我们的设计 |
+| --- | --- |
+| Skills | Skill Plugin / Skill Context API |
+| MCP servers | MCP Plugin / MCP Runtime |
+| Slash commands | 二期 Command Plugin / Workflow entry |
+| Hooks | 二期 lifecycle hook / trigger / policy event |
+| Subagents | 二期 Agent Template / Team Agent 参考，MVP 不纳入 |
+| LSP servers | 二期 Code Intelligence 能力参考 |
+| Background monitors | 二期 Trigger / Event Source / Runtime worker 参考 |
+| Settings / permissions | Plugin Manager config + Policy Engine |
+| Plugin marketplace | Plugin Registry / Marketplace |
+
+关键差异：
+
+- Claude Code 是本地 CLI 和项目工作区模型，配置和执行都靠本地 Agent Runtime 承担。
+- 我们是企业 Agent 平台模型，需要服务端多租户治理、workspace/agent 绑定、凭据隔离、审计和观测。
+- Claude Code 的 hooks 可以作为生命周期事件参考，但不能直接照搬任意脚本执行模式。
+- Claude Code 的 subagents 能力强，但企业权限和成本边界复杂，第一版不建议纳入 Plugin MVP。
+- Claude Code 的 LSP 和 monitors 有参考价值，但涉及长驻进程、资源限制和事件治理，不建议进入 MVP。
+
+建议吸收进后续设计：
+
+- manifest 预留 `commands`、`hooks`、`agents`、`monitors`、`lsp` 扩展字段，但 MVP 不急于实现。
+- Skill 继续保持轻量上下文能力，不进入 Runtime Host。
+- Runtime Host 聚焦 stdio MCP、本地代码插件、受控 hook、monitors 和长任务 worker。
+- Plugin 管理平台吸收 Claude Code 的配置分层思路，映射到 tenant/workspace/agent/user 作用域。
+
+详见：[Claude Code 插件机制分析](./08-claude-code-plugin-analysis.md)。
 
 ## PoC 建议
 
