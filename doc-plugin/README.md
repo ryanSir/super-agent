@@ -16,6 +16,7 @@
 | [design/06-open-source-reference-and-reuse.md](./design/06-open-source-reference-and-reuse.md) | 开源项目参考、复用策略和源码调研计划 |
 | [design/07-development-plan-and-estimation.md](./design/07-development-plan-and-estimation.md) | 0-1 开发计划、端到端流程、角色配置和粗估 |
 | [design/08-claude-code-plugin-analysis.md](./design/08-claude-code-plugin-analysis.md) | Claude Code 的 skills、MCP、commands、hooks、subagents 和插件机制分析 |
+| [development-plan/](./development-plan/) | Plugin 从 POC 进入生产开发的详细设计、模块计划、开源深度分析和当前 Agent 集成测试计划 |
 | [03-plugin-end-to-end-flow.md](./03-plugin-end-to-end-flow.md) | Plugin 端到端流程泳道图、业务 Agent 交互和 POC 映射 |
 | [04-poc-acceptance-and-roadmap.md](./04-poc-acceptance-and-roadmap.md) | Plugin POC 验收说明、部署边界和生产化 Roadmap |
 | [05-code-structure-and-deployment-mapping.md](./05-code-structure-and-deployment-mapping.md) | Plugin POC 代码分层、泳道图映射和未来服务边界 |
@@ -25,4 +26,4 @@
 
 ## 当前建议
 
-当前建议先基于概念、能力模型、运行时架构、协议策略、MVP 范围、开源复用策略、0-1 开发计划、端到端流程图和 POC 验收说明做一次完整评审。`design/07-development-plan-and-estimation.md` 中的估时为 ROM 粗估，用于资源判断和方案评审，不作为最终排期承诺。
+当前建议先基于概念、能力模型、运行时架构、协议策略、MVP 范围、开源复用策略、0-1 开发计划、端到端流程图和 POC 验收说明做一次完整评审。进入生产开发前，以 `development-plan/` 作为详细设计和模块开发入口；`design/07-development-plan-and-estimation.md` 中的估时为 ROM 粗估，用于资源判断和方案评审，不作为最终排期承诺。

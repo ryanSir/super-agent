@@ -1,0 +1,91 @@
+{
+  "plugin_id": "research-assistant",
+  "version": "0.1.0",
+  "checksum": "093b2c13fba9eccf5e5d4361d332cea2af09f5dcb7f78c8fce75f29342d76b64",
+  "manifest": {
+    "schema_version": "0.1",
+    "plugin": {
+      "id": "research-assistant",
+      "name": "Research Assistant",
+      "version": "0.1.0",
+      "publisher": "internal-platform",
+      "description": "Research helper capabilities for document and patent workflows.",
+      "homepage": null,
+      "repository": null,
+      "license": null,
+      "tags": [
+        "research",
+        "documents"
+      ]
+    },
+    "capabilities": [
+      {
+        "type": "skill",
+        "name": "research-summary",
+        "path": "skills/research-summary.md",
+        "description": "Context and usage guide for research summarization tasks."
+      },
+      {
+        "type": "openapi",
+        "name": "patent-search",
+        "path": "openapi/patent-search.yaml",
+        "description": "Remote patent search API capability."
+      }
+    ],
+    "mcp_servers": [
+      {
+        "name": "literature-mcp",
+        "path": "mcp/literature.yaml",
+        "transport": "streamable-http",
+        "endpoint": "https://mcp.example.internal/literature/mcp",
+        "description": "Streamable HTTP MCP server for literature lookup."
+      }
+    ],
+    "credentials": [
+      {
+        "name": "patent-search-api-key",
+        "path": "credentials/patent-search-api-key.yaml",
+        "required": true
+      }
+    ],
+    "assets": [],
+    "runtime": {}
+  },
+  "capabilities": [
+    {
+      "plugin_id": "research-assistant",
+      "plugin_version": "0.1.0",
+      "type": "skill",
+      "name": "research-summary",
+      "description": "Context and usage guide for research summarization tasks.",
+      "invocation": {
+        "path": "skills/research-summary.md"
+      }
+    },
+    {
+      "plugin_id": "research-assistant",
+      "plugin_version": "0.1.0",
+      "type": "openapi",
+      "name": "patent-search",
+      "description": "Remote patent search API capability.",
+      "invocation": {
+        "path": "openapi/patent-search.yaml"
+      }
+    },
+    {
+      "plugin_id": "research-assistant",
+      "plugin_version": "0.1.0",
+      "type": "mcp",
+      "name": "literature-mcp",
+      "description": "Streamable HTTP MCP server for literature lookup.",
+      "invocation": {
+        "transport": "streamable-http",
+        "endpoint": "https://mcp.example.internal/literature/mcp",
+        "path": "mcp/literature.yaml"
+      }
+    }
+  ],
+  "package_path": ".plugin-platform-data/packages/research-assistant-0.1.0.zip",
+  "status": "published",
+  "created_at": "2026-05-15T06:06:53.197709+00:00"
+}

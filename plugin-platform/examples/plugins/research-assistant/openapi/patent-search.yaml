@@ -1,0 +1,12 @@
+openapi: 3.0.3
+info:
+  title: Patent Search API
+  version: 1.0.0
+paths:
+  /search:
+    post:
+      operationId: searchPatents
+      summary: Search patent documents
+      responses:
+        "200":
+          description: Search results

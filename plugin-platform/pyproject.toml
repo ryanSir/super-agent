@@ -1,0 +1,26 @@
+[project]
+name = "plugin-platform"
+version = "0.1.0"
+description = "Production-oriented plugin platform workspace"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi",
+  "httpx",
+  "pydantic>=2",
+  "pydantic-settings",
+  "PyYAML",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [
+  "packages/plugin-contracts",
+  "developer-tools/sdk",
+  "services/plugin-management-service",
+  "services/plugin-core-service",
+  "services/plugin-runtime-service",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"

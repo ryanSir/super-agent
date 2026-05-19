@@ -1,0 +1,30 @@
+schema_version: "0.1"
+plugin:
+  id: research-assistant
+  name: Research Assistant
+  version: 0.1.0
+  publisher: internal-platform
+  description: Research helper capabilities for document and patent workflows.
+  tags:
+    - research
+    - documents
+capabilities:
+  - type: skill
+    name: research-summary
+    path: skills/research-summary.md
+    description: Context and usage guide for research summarization tasks.
+  - type: openapi
+    name: patent-search
+    path: openapi/patent-search.yaml
+    description: Remote patent search API capability.
+mcp_servers:
+  - name: literature-mcp
+    path: mcp/literature.yaml
+    transport: streamable-http
+    endpoint: https://mcp.example.internal/literature/mcp
+    description: Streamable HTTP MCP server for literature lookup.
+credentials:
+  - name: patent-search-api-key
+    path: credentials/patent-search-api-key.yaml
+    required: true
+assets: []

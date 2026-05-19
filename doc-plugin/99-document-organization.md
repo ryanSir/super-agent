@@ -11,6 +11,7 @@
 - 示例插件内的 `SKILL.md` 属于插件包内容，不作为说明文档迁移。
 - 重要汇报和方案文档放在 `doc-plugin` 根目录。
 - 模块级阶段操作手册放在 `doc-plugin/poc-phases/`。
+- 生产化详细设计、模块开发计划、开源深度分析和当前 Agent 集成测试计划放在 `doc-plugin/development-plan/`。
 
 ## 根目录核心文档
 
@@ -68,6 +69,20 @@
 | `phase-9-runtime-host-stdio-adapter.md` | Runtime Host 与 stdio adapter |
 | `phase-10-observability-runtime-hardening.md` | Observability 与 Runtime 稳定性 |
 | `phase-11-e2e-acceptance.md` | E2E 验收 |
+
+## 生产化开发规划
+
+生产化开发规划统一放在 `doc-plugin/development-plan/`，用于承接 POC 结论，进入详细设计和模块开发阶段。
+
+| 文件 / 目录 | 定位 |
+| --- | --- |
+| `development-plan/README.md` | 生产化开发规划入口 |
+| `development-plan/00-stage-transition.md` | 从 POC 到生产开发的阶段转换说明 |
+| `development-plan/01-module-development-plan.md` | 模块开发总计划 |
+| `development-plan/02-current-agent-integration-test-plan.md` | 当前 `src_deepagent` 集成测试计划 |
+| `development-plan/03-open-source-deep-dive-plan.md` | 开源项目深度分析计划 |
+| `development-plan/modules/` | 后续模块详细设计 |
+| `development-plan/open-source-deep-dive/` | 候选开源项目深度分析 |
 
 ## `plugin-poc` 目录保留内容
 

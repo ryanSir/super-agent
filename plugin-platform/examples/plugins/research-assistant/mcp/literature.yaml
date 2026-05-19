@@ -1,0 +1,3 @@
+name: literature-mcp
+transport: streamable-http
+endpoint: https://mcp.example.internal/literature/mcp
