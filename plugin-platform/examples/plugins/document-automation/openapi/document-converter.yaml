@@ -1,0 +1,12 @@
+openapi: 3.0.3
+info:
+  title: Document Converter API
+  version: 1.0.0
+paths:
+  /convert:
+    post:
+      operationId: convertDocument
+      summary: Convert a document between supported office formats
+      responses:
+        "200":
+          description: Converted document metadata

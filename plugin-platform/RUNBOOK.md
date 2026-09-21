@@ -9,12 +9,12 @@
 ```text
 开发侧
   -> 编写插件
-  -> plugin developer sdk / cli
+  -> plugin developer cli
   -> validate / package / publish
 
 平台管理泳道
   -> Registry 存储插件包
-  -> Plugin Manager 安装 / 启用 / 绑定 workspace 或 agent
+  -> Plugin Manager 安装 / 启用
 
 Plugin 核心服务泳道
   -> Capability Index / Discovery
@@ -51,7 +51,6 @@ Plugin 核心服务泳道
 plugin-platform/
   developer-tools/
     cli/
-    sdk/
 
   services/
     plugin-management-service/
@@ -90,7 +89,7 @@ plugin-platform/
 
 | 系统 / 部署单元 | 当前目录 | 生产形态 | 对应泳道 | 当前状态 |
 | --- | --- | --- | --- | --- |
-| Plugin Developer CLI / SDK | `developer-tools/cli/` + `developer-tools/sdk/` | 开发者本地工具或 CI 工具 | 开发侧 | 已实现 validate / package / publish client |
+| Plugin Developer CLI | `developer-tools/cli/` | 开发者本地工具或 CI 工具 | 开发侧 | 已实现 validate / package / publish client |
 | 平台管理面 | `services/plugin-management-service/` | 可先和核心服务同进程部署，后续拆 Registry Service / Manager Service | 平台管理泳道 | 已实现 Registry、Manager、本地 dev store |
 | Plugin 核心服务 | `services/plugin-core-service/` | 一期可以和管理面同进程部署，后续可独立为 Plugin Core Service | Plugin 核心服务泳道 | 已实现 Capability Discovery；Policy / Credential / Gateway 仅有边界，尚未完整落地 |
 | 插件运行时服务 | `services/plugin-runtime-service/` | 一期不独立部署；后续可拆 Invocation Gateway / Runtime Host | 插件运行时服务泳道 | 已实现 OpenAPI、Streamable HTTP MCP、Skill Context 的轻量 runtime adapter |
@@ -103,7 +102,7 @@ plugin-platform/
 第一阶段建议部署关系：
 
 ```text
-Plugin Developer CLI / SDK
+Plugin Developer CLI
   -> HTTP publish
 
 Plugin Backend
@@ -131,7 +130,7 @@ Plugin 核心服务
 
 | 核心服务模块 | 设计职责 | 当前实现位置 | 当前状态 |
 | --- | --- | --- | --- |
-| Capability | 生成和查询 workspace / agent 可用能力 | `services/plugin-management-service/.../capability_index.py`、`services/plugin-core-service/.../capability_routes.py` | 已实现 |
+| Capability | 生成和查询当前已启用能力 | `services/plugin-management-service/.../capability_index.py`、`services/plugin-core-service/.../capability_routes.py` | 已实现 |
 | Policy | 调用前权限检查、scope 校验、策略决策 | 暂未单独落目录 | 后置，只在设计中保留 |
 | Credential | 凭据解析、脱敏展示、调用时注入 | `examples/plugins/.../credentials/` 只有声明示例 | 后置，尚未实现 Broker |
 | Gateway | 统一调用入口、错误归一、分流到 OpenAPI / MCP / Skill | `services/plugin-runtime-service/` 和后续 Plugin Core API 边界 | 部分实现 runtime adapter，尚未形成完整 Invocation Gateway API |
@@ -146,7 +145,7 @@ Plugin 核心服务
 | --- | --- | --- | --- |
 | `README.md` | 文档入口 | 平台边界说明 | 说明 Plugin 平台是独立工作区，不属于当前 `src_deepagent` Agent 代码 |
 | `RUNBOOK.md` | 文档入口 | 运行和测试手册 | 当前文件 |
-| `developer-tools/` | Plugin Developer CLI / SDK | Developer Lifecycle | 插件开发者本地命令和 SDK |
+| `developer-tools/` | Plugin Developer CLI | Developer Lifecycle | 插件开发者本地命令 |
 | `services/plugin-management-service/` | 平台管理面 | Registry / Plugin Manager / Storage | 发布、安装、启用、禁用、绑定 |
 | `services/plugin-core-service/` | Plugin 核心服务 | Capability / Policy / Credential / Gateway API | 当前实现 Capability Discovery 和 API 聚合入口 |
 | `services/plugin-runtime-service/` | 插件运行时服务 | OpenAPI / Streamable HTTP MCP / Skill Context | 当前是轻量 adapter，后续可拆运行时服务 |
@@ -161,7 +160,7 @@ Plugin 核心服务
 | Python 包 | 所在目录 | 对应设计模块 | 说明 |
 | --- | --- | --- | --- |
 | `plugin_contracts` | `packages/plugin-contracts/` | Manifest / Schema / Capability Model | `plugin.yaml`、capability、validation result 等核心模型 |
-| `plugin_developer` | `developer-tools/sdk/` | Developer SDK | 插件校验、打包、发布客户端逻辑 |
+| `plugin_cli` | `developer-tools/cli/plugin_cli/` | Developer CLI internals | 插件校验、打包、发布逻辑 |
 | `plugin_management_service` | `services/plugin-management-service/` | Registry / Manager / Storage | 插件包版本、安装启用状态、Capability Index |
 | `plugin_core_service` | `services/plugin-core-service/` | Plugin Core API | FastAPI app、管理 API、Capability Discovery API |
 | `plugin_runtime_service` | `services/plugin-runtime-service/` | Runtime Adapter | OpenAPI、Streamable HTTP MCP、Skill Context 运行边界 |
@@ -207,7 +206,7 @@ npm --prefix plugin-platform/admin-console install
 CLI 和 `uvicorn` 从仓库根目录运行时，需要设置 Python import path：
 
 ```bash
-export PLUGIN_PLATFORM_PYTHONPATH="plugin-platform/packages/plugin-contracts:plugin-platform/developer-tools/sdk:plugin-platform/services/plugin-management-service:plugin-platform/services/plugin-core-service:plugin-platform/services/plugin-runtime-service"
+export PLUGIN_PLATFORM_PYTHONPATH="plugin-platform/packages/plugin-contracts:plugin-platform/developer-tools/cli:plugin-platform/services/plugin-management-service:plugin-platform/services/plugin-core-service:plugin-platform/services/plugin-runtime-service"
 ```
 
 ## 6. 后端测试
@@ -225,7 +224,7 @@ python -m pytest plugin-platform/tests
 - `stdio` MCP 在第一阶段被拒绝。
 - 插件打包成功和校验失败中断打包。
 - Registry 重复版本冲突。
-- Plugin Manager 安装、启用、禁用、agent 绑定。
+- Plugin Manager 安装、启用、禁用。
 - Capability Index 查询。
 - Backend API 的 publish -> install -> enable -> discover 主流程。
 - OpenAPI timeout 结构化错误。
@@ -248,13 +247,13 @@ python plugin-platform/developer-tools/cli/pluginctl.py validate \
 PYTHONPATH="$PLUGIN_PLATFORM_PYTHONPATH" \
 python plugin-platform/developer-tools/cli/pluginctl.py package \
   plugin-platform/examples/plugins/research-assistant \
-  --out /tmp/plugin-platform-packages
+  --out plugin-platform/.artifacts/packages
 ```
 
 成功后会生成类似：
 
 ```text
-/tmp/plugin-platform-packages/research-assistant-0.1.0.zip
+plugin-platform/.artifacts/packages/research-assistant-0.1.0.zip
 ```
 
 ## 8. 启动完整链路
@@ -295,7 +294,7 @@ http://127.0.0.1:8017
 PYTHONPATH="$PLUGIN_PLATFORM_PYTHONPATH" \
 python plugin-platform/developer-tools/cli/pluginctl.py package \
   plugin-platform/examples/plugins/research-assistant \
-  --out /tmp/plugin-platform-packages
+  --out plugin-platform/.artifacts/packages
 ```
 
 发布到本地 Registry：
@@ -303,7 +302,7 @@ python plugin-platform/developer-tools/cli/pluginctl.py package \
 ```bash
 PYTHONPATH="$PLUGIN_PLATFORM_PYTHONPATH" \
 python plugin-platform/developer-tools/cli/pluginctl.py publish \
-  /tmp/plugin-platform-packages/research-assistant-0.1.0.zip \
+  plugin-platform/.artifacts/packages/research-assistant-0.1.0.zip \
   --registry-url http://127.0.0.1:8017
 ```
 
@@ -340,16 +339,16 @@ http://127.0.0.1:5177
 - capability 列表。
 - Install 操作。
 - Enable / Disable 操作。
-- workspace capability index。
+- capability index。
 
 ### 8.4 用 API 直接验证 install / enable / discovery
 
-安装插件到 workspace：
+安装插件：
 
 ```bash
 curl -sS -X POST http://127.0.0.1:8017/api/manager/installations \
   -H 'Content-Type: application/json' \
-  -d '{"workspace_id":"workspace-1","plugin_id":"research-assistant","version":"0.1.0"}'
+  -d '{"plugin_id":"research-assistant","version":"0.1.0"}'
 ```
 
 启用插件：
@@ -357,28 +356,15 @@ curl -sS -X POST http://127.0.0.1:8017/api/manager/installations \
 ```bash
 curl -sS -X POST http://127.0.0.1:8017/api/manager/installations/enable \
   -H 'Content-Type: application/json' \
-  -d '{"workspace_id":"workspace-1","plugin_id":"research-assistant"}'
+  -d '{"plugin_id":"research-assistant"}'
 ```
 
-查询 workspace 能力：
+查询已启用能力：
 
 ```bash
-curl -sS http://127.0.0.1:8017/api/capabilities/workspaces/workspace-1
+curl -sS http://127.0.0.1:8017/api/capabilities
 ```
 
-绑定给指定 agent：
-
-```bash
-curl -sS -X POST http://127.0.0.1:8017/api/manager/installations/bind-agent \
-  -H 'Content-Type: application/json' \
-  -d '{"workspace_id":"workspace-1","plugin_id":"research-assistant","agent_id":"agent-1"}'
-```
-
-查询 agent 级能力：
-
-```bash
-curl -sS http://127.0.0.1:8017/api/capabilities/workspaces/workspace-1/agents/agent-1
-```
 
 ## 9. 构建验证
 

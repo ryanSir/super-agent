@@ -1,0 +1,24 @@
+schema_version: "0.1"
+plugin:
+  id: document-automation
+  name: Document Automation
+  version: 0.1.0
+  publisher: internal-platform
+  description: Document drafting and conversion capabilities for office workflows.
+  tags:
+    - documents
+    - automation
+capabilities:
+  - type: skill
+    name: document-drafting
+    path: skills/document-drafting.md
+    description: Context and usage guide for structured document drafting tasks.
+  - type: openapi
+    name: document-converter
+    path: openapi/document-converter.yaml
+    description: Remote document conversion API capability.
+credentials:
+  - name: document-converter-api-key
+    path: credentials/document-converter-api-key.yaml
+    required: true
+assets: []

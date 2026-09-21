@@ -3,9 +3,10 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   disablePlugin,
   enablePlugin,
+  getInstallation,
   installPlugin,
+  listCapabilities,
   listPlugins,
-  listWorkspaceCapabilities
 } from './api/client';
 import { InstallStatePanel } from './components/InstallStatePanel';
 import { PluginDetail } from './components/PluginDetail';
@@ -13,7 +14,6 @@ import { PluginList } from './components/PluginList';
 import type { CapabilitySummary, InstallationState, PluginVersion } from './types/plugin';
 import './styles.css';
 
-const WORKSPACE_ID = 'workspace-1';
 type ThemeMode = 'light' | 'dark';
 
 export default function App() {
@@ -69,6 +69,14 @@ export default function App() {
     }
   }, [selectedPlugin, selectedId]);
 
+  useEffect(() => {
+    if (!selectedPlugin) {
+      setInstallation(undefined);
+      return;
+    }
+    void refreshInstallation(selectedPlugin.plugin_id);
+  }, [selectedPlugin?.plugin_id]);
+
   async function refreshPlugins() {
     try {
       setLoading(true);
@@ -84,13 +92,23 @@ export default function App() {
   }
 
   async function refreshCapabilities() {
-    const payload = await listWorkspaceCapabilities(WORKSPACE_ID);
+    const payload = await listCapabilities();
     setCapabilities(payload);
+  }
+
+  async function refreshInstallation(pluginId: string) {
+    try {
+      setError(undefined);
+      const state = await getInstallation(pluginId);
+      setInstallation(state);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to load installation state');
+    }
   }
 
   async function installSelected(plugin: PluginVersion) {
     await runOperation(async () => {
-      const state = await installPlugin(WORKSPACE_ID, plugin.plugin_id, plugin.version);
+      const state = await installPlugin(plugin.plugin_id, plugin.version);
       setInstallation(state);
       await refreshCapabilities();
     });
@@ -99,7 +117,7 @@ export default function App() {
   async function enableSelected() {
     if (!selectedPlugin) return;
     await runOperation(async () => {
-      const state = await enablePlugin(WORKSPACE_ID, selectedPlugin.plugin_id);
+      const state = await enablePlugin(selectedPlugin.plugin_id);
       setInstallation(state);
       await refreshCapabilities();
     });
@@ -108,7 +126,7 @@ export default function App() {
   async function disableSelected() {
     if (!selectedPlugin) return;
     await runOperation(async () => {
-      const state = await disablePlugin(WORKSPACE_ID, selectedPlugin.plugin_id);
+      const state = await disablePlugin(selectedPlugin.plugin_id);
       setInstallation(state);
       await refreshCapabilities();
     });
@@ -133,7 +151,7 @@ export default function App() {
           <span className="product-mark">PP</span>
           <div>
             <h1>Plugin Platform</h1>
-            <p>Registry operations, workspace enablement, and capability governance.</p>
+            <p>Registry operations, plugin enablement, and capability governance.</p>
           </div>
         </div>
         <div className="topbar-actions">
@@ -166,18 +184,13 @@ export default function App() {
           <small>Across all plugins</small>
         </div>
         <div className="metric-card">
-          <span>Workspace</span>
-          <strong>{WORKSPACE_ID}</strong>
-          <small>Current scope</small>
-        </div>
-        <div className="metric-card">
           <span>Active Index</span>
           <strong>{capabilities.length}</strong>
           <small>Enabled capabilities</small>
         </div>
       </section>
 
-      <section className="workspace-grid">
+      <section className="content-grid">
         <aside className="panel list-panel">
           <div className="panel-heading compact">
             <div>
@@ -200,7 +213,12 @@ export default function App() {
           )}
         </aside>
 
-        <PluginDetail plugin={selectedPlugin} onInstall={installSelected} busy={busy} />
+        <PluginDetail
+          plugin={selectedPlugin}
+          installation={installation}
+          onInstall={installSelected}
+          busy={busy}
+        />
 
         <InstallStatePanel
           installation={installation}

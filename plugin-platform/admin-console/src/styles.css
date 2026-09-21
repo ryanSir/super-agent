@@ -66,7 +66,7 @@ button {
 
 .topbar,
 .overview-grid,
-.workspace-grid,
+.content-grid,
 .error-banner {
   margin-left: auto;
   margin-right: auto;
@@ -178,7 +178,7 @@ button {
   font-size: 12px;
 }
 
-.workspace-grid {
+.content-grid {
   display: grid;
   gap: 16px;
   grid-template-columns: minmax(300px, 380px) minmax(460px, 1fr) minmax(300px, 360px);
@@ -443,6 +443,12 @@ button:disabled {
   justify-content: space-between;
 }
 
+.capability-controls {
+  align-items: center;
+  display: inline-flex;
+  gap: 10px;
+}
+
 .type-badge {
   color: #ffffff;
   font-size: 11px;
@@ -590,7 +596,7 @@ button:disabled {
     grid-template-columns: repeat(2, minmax(160px, 1fr));
   }
 
-  .workspace-grid {
+  .content-grid {
     grid-template-columns: 1fr;
   }
 }

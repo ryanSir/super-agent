@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from plugin_developer.packager import PackageError, package_plugin
-from plugin_developer.validator import validate_plugin
+from plugin_cli.packager import PackageError, package_plugin
+from plugin_contracts.validation import validate_plugin
 
 
 def test_validate_example_plugin_success(example_plugin_dir: Path) -> None:

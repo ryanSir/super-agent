@@ -32,9 +32,7 @@ export interface PluginVersion {
 }
 
 export interface InstallationState {
-  workspace_id: string;
   plugin_id: string;
   version: string;
   enabled: boolean;
-  agent_ids: string[];
 }

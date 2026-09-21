@@ -1,15 +1,23 @@
-import type { PluginVersion } from '../types/plugin';
+import type { InstallationState, PluginVersion } from '../types/plugin';
 
 interface PluginDetailProps {
   plugin?: PluginVersion;
+  installation?: InstallationState;
   onInstall: (plugin: PluginVersion) => void;
   busy: boolean;
 }
 
-export function PluginDetail({ plugin, onInstall, busy }: PluginDetailProps) {
+export function PluginDetail({
+  plugin,
+  installation,
+  onInstall,
+  busy
+}: PluginDetailProps) {
   if (!plugin) {
     return <section className="panel muted-panel">Select a plugin to inspect versions and capabilities.</section>;
   }
+
+  const isInstalled = installation?.plugin_id === plugin.plugin_id;
 
   return (
     <section className="panel detail-panel">
@@ -26,8 +34,13 @@ export function PluginDetail({ plugin, onInstall, busy }: PluginDetailProps) {
           </div>
           </div>
         </div>
-        <button className="primary-action" disabled={busy} onClick={() => onInstall(plugin)} type="button">
-          {busy ? 'Installing...' : 'Install'}
+        <button
+          className={isInstalled ? 'secondary-action' : 'primary-action'}
+          disabled={busy || isInstalled}
+          onClick={() => onInstall(plugin)}
+          type="button"
+        >
+          {isInstalled ? (installation.enabled ? 'Enabled' : 'Installed') : busy ? 'Installing...' : 'Install'}
         </button>
       </div>
 
@@ -58,7 +71,9 @@ export function PluginDetail({ plugin, onInstall, busy }: PluginDetailProps) {
             <div className="capability-main">
               <div className="capability-heading">
                 <strong>{capability.name}</strong>
-                <span className={`type-badge ${capability.type}`}>{capability.type}</span>
+                <div className="capability-controls">
+                  <span className={`type-badge ${capability.type}`}>{capability.type}</span>
+                </div>
               </div>
               <p>{capability.description ?? 'No description'}</p>
               <div className="capability-path">

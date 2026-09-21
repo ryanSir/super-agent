@@ -19,8 +19,8 @@ export function InstallStatePanel({
     <section className="panel state-panel">
       <div className="panel-heading compact">
         <div>
-          <h2>Workspace State</h2>
-          <p>workspace-1</p>
+          <h2>Installation State</h2>
+          <p>Global plugin state</p>
         </div>
         {installation?.enabled ? (
           <button className="secondary-action" disabled={busy} onClick={onDisable} type="button">
@@ -39,7 +39,7 @@ export function InstallStatePanel({
       </div>
       <p className="state-note">
         {installation
-          ? `Version ${installation.version} is installed for this workspace.`
+          ? `Version ${installation.version} is installed.`
           : 'Install the selected plugin before enabling its capabilities.'}
       </p>
 
@@ -64,7 +64,7 @@ export function InstallStatePanel({
 
       <h3>Indexed Capabilities</h3>
       {capabilities.length === 0 ? (
-        <div className="empty-state small">No active capabilities indexed for this workspace.</div>
+        <div className="empty-state small">No active capabilities indexed.</div>
       ) : (
         <ul className="indexed-list">
           {capabilities.map((capability) => (

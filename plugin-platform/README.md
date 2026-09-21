@@ -6,7 +6,7 @@
 
 ## Modules
 
-- `developer-tools/`: 插件开发者 CLI / SDK。
+- `developer-tools/`: 插件开发者 CLI。
 - `services/plugin-management-service/`: Registry、Plugin Manager、Capability Index 状态管理。
 - `services/plugin-core-service/`: FastAPI app、管理 API、Capability Discovery API。
 - `services/plugin-runtime-service/`: OpenAPI、Streamable HTTP MCP、Skill Context runtime adapter。
@@ -14,13 +14,14 @@
 - `admin-console/`: Plugin 管理平台前端。
 - `examples/`: 示例插件。
 - `tests/`: 平台级单测和流程测试。
+- `development-handbook/`: 面向插件接入团队和平台开发者的开发手册。
 
 ## Local Commands
 
 ```bash
 python -m pytest plugin-platform/tests
 
-export PLUGIN_PLATFORM_PYTHONPATH="plugin-platform/packages/plugin-contracts:plugin-platform/developer-tools/sdk:plugin-platform/services/plugin-management-service:plugin-platform/services/plugin-core-service:plugin-platform/services/plugin-runtime-service"
+export PLUGIN_PLATFORM_PYTHONPATH="plugin-platform/packages/plugin-contracts:plugin-platform/developer-tools/cli:plugin-platform/services/plugin-management-service:plugin-platform/services/plugin-core-service:plugin-platform/services/plugin-runtime-service"
 
 PYTHONPATH="$PLUGIN_PLATFORM_PYTHONPATH" \
 python plugin-platform/developer-tools/cli/pluginctl.py validate \
@@ -29,7 +30,7 @@ python plugin-platform/developer-tools/cli/pluginctl.py validate \
 PYTHONPATH="$PLUGIN_PLATFORM_PYTHONPATH" \
 python plugin-platform/developer-tools/cli/pluginctl.py package \
   plugin-platform/examples/plugins/research-assistant \
-  --out /tmp/plugin-packages
+  --out plugin-platform/.artifacts/packages
 ```
 
 第一阶段优先打通开发、校验、打包、发布、安装、启用和能力索引链路。当前 Agent 集成、完整权限、凭据托管、审计、stdio MCP adapter 和 Runtime Host 均放到后续阶段。

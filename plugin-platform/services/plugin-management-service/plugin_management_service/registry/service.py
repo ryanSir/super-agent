@@ -1,9 +1,9 @@
 from datetime import UTC, datetime
+from hashlib import sha256
 from pathlib import Path
 
-from plugin_developer.packager import _file_sha256
-from plugin_developer.validator import validate_plugin
 from plugin_contracts.manifest import load_manifest
+from plugin_contracts.validation import validate_plugin
 from plugin_management_service.storage.repository import PluginVersionRecord, RegistryRepository
 
 
@@ -43,3 +43,11 @@ class RegistryService:
 
     def list_versions(self) -> list[PluginVersionRecord]:
         return self.repository.list_versions()
+
+
+def _file_sha256(path: Path) -> str:
+    digest = sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()

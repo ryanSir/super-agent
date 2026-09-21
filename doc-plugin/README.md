@@ -16,6 +16,9 @@
 | [design/06-open-source-reference-and-reuse.md](./design/06-open-source-reference-and-reuse.md) | 开源项目参考、复用策略和源码调研计划 |
 | [design/07-development-plan-and-estimation.md](./design/07-development-plan-and-estimation.md) | 0-1 开发计划、端到端流程、角色配置和粗估 |
 | [design/08-claude-code-plugin-analysis.md](./design/08-claude-code-plugin-analysis.md) | Claude Code 的 skills、MCP、commands、hooks、subagents 和插件机制分析 |
+| [design/09-mainstream-plugin-runtime-deep-dive.md](./design/09-mainstream-plugin-runtime-deep-dive.md) | Codex、Claude Code、Dify、Open WebUI 等主流插件体系的管理面、调用链路、运行时和 token 控制深度分析 |
+| [design/10-codex-plugin-dynamic-flow-deep-dive.md](./design/10-codex-plugin-dynamic-flow-deep-dive.md) | Codex Plugin 的 marketplace、安装、缓存、运行时加载、turn 动态注入、MCP deferred/tool_search 和执行链路专项分析 |
+| [design/11-claude-code-plugin-dynamic-flow-deep-dive.md](./design/11-claude-code-plugin-dynamic-flow-deep-dive.md) | Claude Code Plugin 的 marketplace、安装 scope、cache、reload、skills、MCP、hooks、subagents、LSP、monitors 动态链路专项分析 |
 | [development-plan/](./development-plan/) | Plugin 从 POC 进入生产开发的详细设计、模块计划、开源深度分析和当前 Agent 集成测试计划 |
 | [03-plugin-end-to-end-flow.md](./03-plugin-end-to-end-flow.md) | Plugin 端到端流程泳道图、业务 Agent 交互和 POC 映射 |
 | [04-poc-acceptance-and-roadmap.md](./04-poc-acceptance-and-roadmap.md) | Plugin POC 验收说明、部署边界和生产化 Roadmap |

@@ -114,3 +114,4 @@ def _build_capability_summary(manifest: PluginManifest) -> list[CapabilitySummar
         for server in manifest.mcp_servers
     )
     return summaries
+

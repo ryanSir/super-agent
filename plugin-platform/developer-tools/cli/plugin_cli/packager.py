@@ -3,8 +3,8 @@ from hashlib import sha256
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
 
-from plugin_developer.validator import validate_plugin
 from plugin_contracts.manifest import load_manifest
+from plugin_contracts.validation import validate_plugin
 
 
 @dataclass(frozen=True)

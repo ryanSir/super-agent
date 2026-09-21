@@ -18,11 +18,9 @@ class PluginVersionRecord(BaseModel):
 
 
 class InstallationRecord(BaseModel):
-    workspace_id: str
     plugin_id: str
     version: str
     enabled: bool = False
-    agent_ids: list[str] = Field(default_factory=list)
 
 
 class RegistryRepository(Protocol):
@@ -36,10 +34,6 @@ class RegistryRepository(Protocol):
 class ManagerRepository(Protocol):
     def save_installation(self, record: InstallationRecord) -> InstallationRecord: ...
 
-    def get_installation(
-        self,
-        workspace_id: str,
-        plugin_id: str,
-    ) -> InstallationRecord | None: ...
+    def get_installation(self, plugin_id: str) -> InstallationRecord | None: ...
 
-    def list_installations(self, workspace_id: str) -> list[InstallationRecord]: ...
+    def list_installations(self) -> list[InstallationRecord]: ...

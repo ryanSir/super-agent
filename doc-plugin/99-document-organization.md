@@ -41,6 +41,10 @@
 | `design/05-mvp-roadmap.md` | MVP 范围和路线图 |
 | `design/06-open-source-reference-and-reuse.md` | 开源参考、复用策略和源码调研计划 |
 | `design/07-development-plan-and-estimation.md` | 0-1 开发计划和粗估 |
+| `design/08-claude-code-plugin-analysis.md` | Claude Code 插件机制专项分析 |
+| `design/09-mainstream-plugin-runtime-deep-dive.md` | Codex、Claude Code、Dify、Open WebUI 等主流插件体系的运行时调用链路深度分析 |
+| `design/10-codex-plugin-dynamic-flow-deep-dive.md` | Codex Plugin 的动态加载、turn 注入、MCP deferred/tool_search 和执行链路专项分析 |
+| `design/11-claude-code-plugin-dynamic-flow-deep-dive.md` | Claude Code Plugin 的动态加载、skills/MCP/hooks/subagents/LSP/monitors 和上下文控制专项分析 |
 
 ## 图表文件
 

@@ -5,9 +5,9 @@ import argparse
 import json
 from pathlib import Path
 
-from plugin_developer.packager import package_plugin
-from plugin_developer.publisher import publish_package
-from plugin_developer.validator import validate_plugin
+from plugin_cli.packager import package_plugin
+from plugin_cli.publisher import publish_package
+from plugin_contracts.validation import validate_plugin
 
 
 def main() -> int:

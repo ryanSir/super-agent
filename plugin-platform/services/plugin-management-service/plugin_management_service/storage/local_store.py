@@ -44,28 +44,23 @@ class LocalPluginStore:
         return records
 
     def save_installation(self, record: InstallationRecord) -> InstallationRecord:
-        path = self._installation_path(record.workspace_id, record.plugin_id)
+        path = self._installation_path(record.plugin_id)
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(record.model_dump_json(indent=2), encoding="utf-8")
         return record
 
-    def get_installation(
-        self,
-        workspace_id: str,
-        plugin_id: str,
-    ) -> InstallationRecord | None:
-        path = self._installation_path(workspace_id, plugin_id)
+    def get_installation(self, plugin_id: str) -> InstallationRecord | None:
+        path = self._installation_path(plugin_id)
         if not path.exists():
             return None
         return InstallationRecord.model_validate_json(path.read_text(encoding="utf-8"))
 
-    def list_installations(self, workspace_id: str) -> list[InstallationRecord]:
-        workspace_dir = self.install_dir / workspace_id
-        if not workspace_dir.exists():
+    def list_installations(self) -> list[InstallationRecord]:
+        if not self.install_dir.exists():
             return []
         return [
             InstallationRecord.model_validate_json(path.read_text(encoding="utf-8"))
-            for path in sorted(workspace_dir.glob("*.json"))
+            for path in sorted(self.install_dir.glob("*.json"))
         ]
 
     def _version_path(self, plugin_id: str, version: str) -> Path:
@@ -73,5 +68,5 @@ class LocalPluginStore:
         plugin_dir.mkdir(parents=True, exist_ok=True)
         return plugin_dir / f"{version}.json"
 
-    def _installation_path(self, workspace_id: str, plugin_id: str) -> Path:
-        return self.install_dir / workspace_id / f"{plugin_id}.json"
+    def _installation_path(self, plugin_id: str) -> Path:
+        return self.install_dir / f"{plugin_id}.json"

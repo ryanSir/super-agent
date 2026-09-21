@@ -15,7 +15,7 @@ dependencies = [
 testpaths = ["tests"]
 pythonpath = [
   "packages/plugin-contracts",
-  "developer-tools/sdk",
+  "developer-tools/cli",
   "services/plugin-management-service",
   "services/plugin-core-service",
   "services/plugin-runtime-service",
