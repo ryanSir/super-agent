@@ -14,7 +14,7 @@ help:
 install: install-backend install-frontend
 
 install-backend:
-	pip install -r requirements.txt
+	.venv/bin/pip install -r requirements.txt
 
 install-frontend:
 	cd frontend-deepagent && npm install
@@ -22,12 +22,12 @@ install-frontend:
 dev:
 	@echo "启动后端和前端..."
 	@trap 'kill 0' INT; \
-	python run_deepagent.py & \
+	.venv/bin/python run_deepagent.py & \
 	cd frontend-deepagent && npm run dev & \
 	wait
 
 dev-backend:
-	python run_deepagent.py
+	.venv/bin/python run_deepagent.py
 
 dev-frontend:
 	cd frontend-deepagent && npm run dev
@@ -36,4 +36,4 @@ build:
 	cd frontend-deepagent && npm run build
 
 lint:
-	ruff check src_deepagent/
+	.venv/bin/ruff check src_deepagent/

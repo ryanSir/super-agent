@@ -15,7 +15,8 @@ pydantic-settings==2.13.1
 pydantic-ai==1.84.1
 pydantic-deep==0.3.3
 
-# LLM Providershropic==0.96.0
+# LLM Providers
+anthropic==0.125.0
 openai==2.29.0
 
 # MCP
@@ -48,6 +49,7 @@ beautifulsoup4==4.14.3
 
 # 可观测性
 langfuse==4.0.1
+opentelemetry-instrumentation-anthropic==0.48.2
 logfire==4.29.0
 
 # 沙箱
